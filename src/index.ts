@@ -1,33 +1,39 @@
 import { VRange } from './range'
-import { ast, astToFunction, astToRangeFunction } from './ast'
+import { ast, astToFunction, astToRangeFunction, astToRangeInlineFunction } from './ast'
 
 
 
 const circleAST = ast.add(ast.add(ast.mult('x', 'x'), ast.mult('y', 'y')), -1)
-const fAST = ast.mult(circleAST, ast.add(ast.add('x', ast.mult('y', 20)), 3.1))
+const fAST = ast.mult(circleAST, ast.add(ast.add('x', ast.mult('y', 'x')), 1))
+
+const finline = astToRangeInlineFunction(fAST)
 
 
-const f = astToRangeFunction(fAST)
-const fv = astToFunction(fAST)
-;(window as any).frange = f
-;(window as any).fvalue = fv
+
+const frangeBase = astToRangeFunction(fAST)
+const frange: Fxy = (xmin, xmax, ymin, ymax) => frangeBase([xmin, xmax], [ymin, ymax])
+const f = frange
+const fvalue = astToFunction(fAST)
+;(window as any).frange = frange
+;(window as any).finline = finline
+;(window as any).fvalue = fvalue
 
 function sleep(ms: number) {
   return new Promise<void>(resolve => setTimeout(resolve, ms))
 }
 
-type Fxy = (x: VRange, y: VRange) => VRange
+type Fxy = (xmin: number, xmax: number, ymin: number, ymax: number) => VRange
 
 type RangeCallback = (x: VRange, y: VRange, step: number, sign: 1 | -1 | 0) => void
 
 class Solver {
-  queue: [VRange, VRange, number, number, number][] = [] // x, y, w, h, step
+  queue: [number, number, number, number, number, number, number][] = [] // xmin, xmax, ymin, ymax, w, h, step
   stepPerRun = 4
   completed = false
   aborted = false
   cnt = 0
   constructor(public f: Fxy, x: VRange, y: VRange, w: number, h: number, public report: RangeCallback) {
-    this.queue.push([x, y, Math.round(w), Math.round(h), 0])
+    this.queue.push([...x, ...y, Math.round(w), Math.round(h), 0])
   }
   runStep() {
     if (this.queue.length === 0) {
@@ -35,40 +41,39 @@ class Solver {
       return
     }
     this.cnt += 1
-    const [x, y, xres, yres, step] = this.queue.shift()!
-    const [min, max] = f(x, y)
+    const [xmin, xmax, ymin, ymax, xres, yres, step] = this.queue.shift()!
+    const [min, max] = f(xmin, xmax, ymin, ymax)
     if (max < 0 || 0 < min) {
-      this.report(x, y, step, max < 0 ? -1 : 1)
+      this.report([xmin, xmax], [ymin, ymax], step, max < 0 ? -1 : 1)
       return
     }
-    this.report(x, y, step, 0)
+    this.report([xmin, xmax], [ymin, ymax], step, 0)
     if (xres === 1 && yres === 1) return
     const xr = Math.round(xres / 2)
-    const [xmin, xmax] = x
     const xmid = xmin + (xmax - xmin) * xr / xres
     const yr = Math.round(yres / 2)
-    const [ymin, ymax] = y
     const ymid = ymin + (ymax - ymin) * yr / yres
     if (xres <= 1) {
       this.queue.push(
-        [x, [ymin, ymid], xres, yr, step + 1],
-        [x, [ymid, ymax], xres, yres - yr, step + 1]
+        [xmin, xmax, ymin, ymid, xres, yr, step + 1],
+        [xmin, xmax, ymid, ymax, xres, yres - yr, step + 1]
       )
     } else if (yres <= 1) {
       this.queue.push(
-        [[xmin, xmid], y, xr, yres, step + 1],
-        [[xmid, xmax], y, xres - xr, yres, step + 1]
+        [xmin, xmid, ymin, ymax, xr, yres, step + 1],
+        [xmid, xmax, ymin, ymax, xres - xr, yres, step + 1]
       )
     } else {
       this.queue.push(
-        [[xmin, xmid], [ymin, ymid], xr, yr, step + 1],
-        [[xmid, xmax], [ymin, ymid], xres - xr, yr, step + 1],
-        [[xmin, xmid], [ymid, ymax], xr, yres - yr, step + 1],
-        [[xmid, xmax], [ymid, ymax], xres - xr, yres - yr, step + 1]
+        [xmin, xmid, ymin, ymid, xr, yr, step + 1],
+        [xmid, xmax, ymin, ymid, xres - xr, yr, step + 1],
+        [xmin, xmid, ymid, ymax, xr, yres - yr, step + 1],
+        [xmid, xmax, ymid, ymax, xres - xr, yres - yr, step + 1]
       )
     }
   }
   async run() {
+    let timeSum = 0
     while (!this.completed && !this.aborted) {
       const t0 = performance.now()
       for (let i = this.stepPerRun; i > 0; i--) this.runStep()
@@ -76,8 +81,10 @@ class Solver {
       const step = 16 / time
       this.stepPerRun = Math.max(4, this.stepPerRun / 4, Math.min(step, this.stepPerRun * 4))
       await sleep(16)
+      timeSum += time
       console.log(this.queue.length, this.cnt, step)
     }
+    console.log('sum: ' + timeSum)
   }
   abort() {
     this.aborted = true
@@ -100,10 +107,10 @@ onload = () => {
   const solver = new Solver(f, [-1.2, 1.2], [-1.2, 1.2], 128, 128, ([xmin, xmax], [ymin, ymax], step, sign) => {
     // if (step != 6) return
     if (sign === 0) {
-      const [v00] = f([xmin, xmin], [ymin, ymin])
-      const [v01] = f([xmin, xmin], [ymax, ymax])
-      const [v10] = f([xmax, xmax], [ymin, ymin])
-      const [v11] = f([xmax, xmax], [ymax, ymax])
+      const [v00] = f(xmin, xmin, ymin, ymin)
+      const [v01] = f(xmin, xmin, ymax, ymax)
+      const [v10] = f(xmax, xmax, ymin, ymin)
+      const [v11] = f(xmax, xmax, ymax, ymax)
       const coords: [number, number][] = []
       if (v00 * v01 <= 0) coords.push([xmin, ymin - (ymax - ymin) * v00 / (v01 - v00)])
       if (v10 * v11 <= 0) coords.push([xmax, ymin - (ymax - ymin) * v10 / (v11 - v10)])

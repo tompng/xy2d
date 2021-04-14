@@ -1,5 +1,6 @@
 import * as range from "./range"
 import type { VRange } from "./range"
+import { expanders, Expander, MinMaxVarName, NameGenerator } from "./expander"
 
 type ASTNode = string | number | {
   op: 'sin' | 'cos' | 'log' | 'exp' | '-@'
@@ -100,4 +101,40 @@ export function astToRangeFunction(ast: ASTNode, constants: Record<string, numbe
   const args = new Set(['x', 'y'])
   const code = `({ ${injects} }) => (x, y) => ${astToRangeCode(compactAST(ast, constants), args)}`
   return eval(code)(range)
+}
+
+function astToRangeInlineVarCode(ast: ASTNode, args: Record<string, MinMaxVarName>, expanders: Record<string, Expander>, namer: NameGenerator): [MinMaxVarName | number, string] {
+  if (typeof ast === 'number') return [ast, '']
+  if (typeof ast === 'string') {
+    const varname = args[ast]
+    if (!varname) throw new Error(`Unknown constant or variable: ${ast}`)
+    return [varname, '']
+  }
+  const [a, acode] = astToRangeInlineVarCode(ast.a, args, expanders, namer)
+  const [b, bcode] = 'b' in ast ? astToRangeInlineVarCode(ast.b, args, expanders, namer) : [0, '']
+  const expander = expanders[ast.op]
+  if (!expander) throw new Error(`Expander undefined for: ${ast.op}`)
+  const [c, ccode] = expander(a, b, namer)
+  return [c, acode + ';' + bcode + ';' + ccode]
+}
+
+export function astToRangeInlineFunction(ast: ASTNode, constants: Record<string, number> = {}): (xmin: number, xmax: number, ymin: number, ymax: number) => VRange {
+  let nameGeneratorIndex = 0
+  const nameGenerator = () => {
+    let n = nameGeneratorIndex++
+    let name = ''
+    while (name === '' || n > 0) {
+      name = String.fromCharCode('a'.charCodeAt(0) + n % 26) + name
+      n = Math.floor(n / 26)
+    }
+    return name
+  }
+  const [result, code] = astToRangeInlineVarCode(
+    compactAST(ast, constants),
+    { x: ['xmin', 'xmax'], y: ['ymin', 'ymax']},
+    expanders,
+    nameGenerator
+  )
+  if (typeof result === 'number') return () => [result, result]
+  return eval((window as any).code =`(xmin,xmax,ymin,ymax)=>{${code};return [${result[0]},${result[1]}];}`)
 }

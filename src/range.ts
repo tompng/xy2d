@@ -31,7 +31,7 @@ export function invV([min, max]: VRange): VRange {
     if (min === 0 && max !== 0) return [1 / max, Infinity]
     return [-Infinity, Infinity]
   }
-  return min < 0 ? [1 / min, 1 / max] : [1 / max, 1 / min]
+  return [1 / max, 1 / min]
 }
 export function divVV(a: VRange, b: VRange): VRange {
   return multVV(a, invV(b))
