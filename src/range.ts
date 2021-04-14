@@ -80,14 +80,18 @@ export function powVC([amin, amax]: VRange, b: number): VRange {
   return b < 0 ? [v2, v1] : [v1, v2]
 }
 export function powCV(a: number, [bmin, bmax]: VRange): VRange {
- if (a < 0) return [0, 0]
- return [Math.pow(a, bmin), Math.pow(a, bmax)]
+  if (a < 0) return [0, 0]
+  return [Math.pow(a, bmin), Math.pow(a, bmax)]
 }
 export function powVV([amin, amax]: VRange, [bmin, bmax]: VRange) {
   if (amax < 0) return [0, 0]
   if (amin < 0) amin = 0
+  const p = Math.pow(amin, bmin)
+  const q = Math.pow(amin, bmax)
+  const r = Math.pow(amax, bmin)
+  const s = Math.pow(amax, bmax)
   return [
-    Math.min(Math.pow(amin, bmin), Math.pow(amin, bmax)),
-    Math.max(Math.pow(amax, bmin), Math.pow(amax, bmax))
+    Math.min(p, q, r, s),
+    Math.max(p, q, r, s)
   ]
 }

@@ -12,9 +12,10 @@ const finline = astToRangeInlineFunction(fAST)
 
 const frangeBase = astToRangeFunction(fAST)
 const frange: Fxy = (xmin, xmax, ymin, ymax) => frangeBase([xmin, xmax], [ymin, ymax])
-const f = frange
+const f = finline
 const fvalue = astToFunction(fAST)
 ;(window as any).frange = frange
+;(window as any).frangeBase = frangeBase
 ;(window as any).finline = finline
 ;(window as any).fvalue = fvalue
 
