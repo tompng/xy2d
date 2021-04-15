@@ -9,7 +9,7 @@ type UnaryOp =
   | 'sinh' | 'cosh' | 'tanh'
   | 'asin' | 'acos' | 'atan'
   | 'asinh' | 'acosh' | 'atanh'
-type BinaryOp = '+' | '-' | '*' | '/' | '^'
+type BinaryOp = '+' | '-' | '*' | '/' | '^' | 'hypot' | 'atan2'
 type ASTNode = string | number | {
   op: UnaryOp
   a: ASTNode
@@ -28,7 +28,8 @@ export const ast = {
   minus: (a: ASTNode) => ({ op: '-@', a } as ASTNode),
   sin: (a: ASTNode) => ({ op: 'sin', a } as ASTNode),
   cos: (a: ASTNode) => ({ op: 'cos', a } as ASTNode),
-  f: (op: UnaryOp, a: ASTNode) => ({ op: op, a } as ASTNode),
+  f1: (op: UnaryOp, a: ASTNode) => ({ op: op, a } as ASTNode),
+  f2: (op: BinaryOp, a: ASTNode, b: ASTNode) => ({ op: op, a, b } as ASTNode),
   exp: (a: ASTNode) => ({ op: 'exp', a } as ASTNode),
   log: (a: ASTNode) => ({ op: 'log', a } as ASTNode),
 }
@@ -49,6 +50,8 @@ export function compactAST(ast: ASTNode, constants: Record<string, number>): AST
       case '*': return a * b
       case '/': return a / b
       case '^': return a ** b
+      case 'hypot': return Math.hypot(a, b)
+      case 'atan2': return Math.atan2(a, b)
     }
   } else {
     const { a } = ast
@@ -103,6 +106,7 @@ export function astToRangeCode(ast: ASTNode, args: Set<string>): string | number
       case '*': return ta === 'C' ? `multVC(${b},${a})` : tb === 'C' ? `multVC(${a},${b})` : `multVV(${a},${b})`
       case '/': return ta === 'C' ? `multVC(invV(${b}),${a})` : typeof b === 'number' ? `multVC(${a},${1 / b})` : `divVV(${a},${b})`
       case '^': return `pow${ta}${tb}(${a},${b})`
+      default: throw 'Error'
     }
   } else {
     if (ast.op === '-@') return `minusV(${a})`
