@@ -154,27 +154,111 @@ const pow: Expander = (a, b, namer) => {
   return [[minvar, maxvar], code]
 }
 
-function createMonoIncExpander(func: (v: number) => number, funcName: string, positiveOnly: boolean = false): Expander {
+function createConvexExpander(func: (n: number) => number, funcName: string, type: 'down' | 'up'): Expander {
   return (a, _b, namer) => {
     if (typeof a === 'number') return [func(a), '']
     const [min, max] = a
     const minvar = namer()
     const maxvar = namer()
-    if (!positiveOnly) {
-      const code = `const ${minvar}=${func}(${min}),${maxvar}=${func}(${max})`
-      return [[minvar, maxvar], code]
+    const fmin = namer()
+    const fmax = namer()
+    const has0 = `${min}<0&&0<${max}?${func(0)}:`
+    const prepare = `const ${fmin}=${funcName}(${min}),${fmax}=${funcName}(${max})`
+    const mincode = `const ${minvar}=${type === 'down' ? has0 : ''}Math.min(${fmin},${fmax})`
+    const maxcode = `const ${maxvar}=${type === 'up' ? has0 : ''}Math.max(${fmin},${fmax})`
+    return [[minvar, maxvar], [prepare, mincode, maxcode].join(';')]
+  }
+}
+
+function createMonoIncExpander(func: (v: number) => number, funcName: string): Expander {
+  return (a, _b, namer) => {
+    if (typeof a === 'number') return [func(a), '']
+    const [min, max] = a
+    const minvar = namer()
+    const maxvar = namer()
+    const code = `const ${minvar}=${func}(${min}),${maxvar}=${func}(${max})`
+    return [[minvar, maxvar], code]
+  }
+}
+
+function createMonotonicExpander(func: (v: number) => number, funcName: string, type: 'inc' | 'dec', range: { min?: [number, number]; max?: [number, number] } = {}): Expander {
+  const rangeMin = range.min
+  const rangeMax = range.max
+  return (a, _b, namer) => {
+    if (typeof a === 'number') {
+      const v = rangeMin && a <= rangeMin[0] ? rangeMin[1] : rangeMax && a <= rangeMax[0] ? rangeMax[1] : func(a)
+      return [v, '']
     }
+    const [min, max] = a
+    const minvar = namer()
+    const maxvar = namer()
+    const conditions: string[] = []
+    if (rangeMin) conditions.push(`if(${max}<=${rangeMin[0]}){${minvar}=${maxvar}=${rangeMin[1]}}`)
+    if (rangeMax) conditions.push(`${conditions.length === 0 ? '' : 'else '}if(${rangeMax[0]}<=${min}){${minvar}=${maxvar}=${rangeMax[1]}}`)
+    const lcode = rangeMin ? `${min}<=${rangeMin[0]}?${rangeMin[1]}:${funcName}(${min});` : `${funcName}(${min})`
+    const rcode = rangeMax ? `${rangeMax[0]}<=${max}?${rangeMax[1]}:${funcName}(${max});` : `${funcName}(${max})`
+    const vcode = `${minvar}=${type === 'inc' ? lcode : rcode};${maxvar}=${type === 'inc' ? rcode : lcode}`
     const code = [
       `let ${minvar},${maxvar};`,
-      `if(${max}<0){${minvar}=${maxvar}=0}`,
-      `else{${minvar}=${min}<0?0:${funcName}(${min});${maxvar}=${funcName}(${max})}`
+      conditions.join(''),
+      conditions.length === 0 ? vcode : `else{${vcode}}`
     ].join('')
     return [[minvar, maxvar], code]
   }
 }
-const exp = createMonoIncExpander(Math.exp, 'Math.exp')
-const log = createMonoIncExpander(Math.log, 'Math.log', true)
-const sqrt = createMonoIncExpander(Math.sqrt, 'Math.sqrt', true)
+
+const exp = createMonotonicExpander(Math.exp, 'Math.exp', 'inc')
+const log = createMonotonicExpander(Math.log, 'Math.log', 'inc', { min: [0, -Infinity] })
+const sqrt = createMonotonicExpander(Math.sqrt, 'Math.sqrt', 'inc', { min: [0, 0] })
+const sinh = createMonotonicExpander(Math.sinh, 'Math.sinh', 'inc')
+const cosh = createConvexExpander(Math.cosh, 'Math.cosh', 'down')
+const tanh = createMonotonicExpander(Math.tanh, 'Math.tanh', 'inc')
+const asin = createMonotonicExpander(Math.asin, 'Math.asin', 'inc', { min: [-1, -Math.PI / 2], max: [1, Math.PI / 2] })
+const acos = createMonotonicExpander(Math.acos, 'Math.acos', 'dec', { min: [-1, Math.PI], max: [1, 0] })
+const atan = createMonotonicExpander(Math.atan, 'Math.atan', 'inc')
+const asinh = createMonotonicExpander(Math.asinh, 'Math.asinh', 'inc')
+const acosh = createMonotonicExpander(Math.acosh, 'Math.acosh', 'inc', { min: [1, 0] })
+const atanh = createMonotonicExpander(Math.atanh, 'Math.atanh', 'inc', { min: [-1, -Infinity], max: [1, Infinity] })
+
+function sincos(a: MinMaxVarName, mode: 'sin' | 'cos', namer: NameGenerator): [MinMaxVarName, string] {
+  const [min, max] = a
+  const minvar = namer()
+  const maxvar = namer()
+  const s1 = namer()
+  const s2 = namer()
+  const i1 = namer()
+  const i2 = namer()
+  const offset = mode === 'sin' ? '-0.5' : ''
+  const code = [
+    `let ${minvar},${maxvar};`,
+    `if(${max}-${min}>${2 * Math.PI}){${minvar}=-1;${maxvar}=1}`,
+    `else{`,
+    `const ${s1}=Math.${mode}(${min}),${s2}=Math.${mode}(${max});`,
+    `if(${s1}<${s2}){${minvar}=${s1};${maxvar}=${s2}}else{${minvar}=${s2};${maxvar}=${s1}}`,
+    `const ${i1}=Math.floor(${min}*${1 / Math.PI}${offset}),${i2}=Math.floor(${max}*${1 / Math.PI}${offset});`,
+    `if(${i1}<(${i2}&-2))${maxvar}=1;`,
+    `if(${i1}<=((${i2}-1)&-2))${minvar}=-1`,
+    `}`
+  ].join('')
+  return [[minvar, maxvar], code]
+}
+
+const sin: Expander = (a, _b, namer) => {
+  if (typeof a === 'number') return [Math.sin(a), '']
+  return sincos(a, 'sin', namer)
+}
+const cos: Expander = (a, _b, namer) => {
+  if (typeof a === 'number') return [Math.cos(a), '']
+  return sincos(a, 'cos', namer)
+}
+
+const tan: Expander = (a, _b, namer) => {
+  if (typeof a === 'number') return [Math.tan(a), '']
+  const [cvar, ccode] = cos(a, _b, namer)
+  const [svar, scode] = sin(a, _b, namer)
+  const [tvar, tcode] = div(svar, cvar, namer)
+  return [tvar, [ccode, scode, tcode].join(';')]
+}
 
 export const expanders = {
   '+': add,
@@ -186,4 +270,16 @@ export const expanders = {
   sqrt,
   exp,
   log,
+  sin,
+  cos,
+  tan,
+  sinh,
+  cosh,
+  tanh,
+  asin,
+  acos,
+  atan,
+  asinh,
+  acosh,
+  atanh
 }

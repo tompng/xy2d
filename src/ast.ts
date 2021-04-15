@@ -2,11 +2,19 @@ import * as range from "./range"
 import type { VRange } from "./range"
 import { expanders, Expander, MinMaxVarName, NameGenerator } from "./expander"
 
+
+type UnaryOp =
+  | '-@' | 'log' | 'exp'
+  | 'sin' | 'cos' | 'tan'
+  | 'sinh' | 'cosh' | 'tanh'
+  | 'asin' | 'acos' | 'atan'
+  | 'asinh' | 'acosh' | 'atanh'
+type BinaryOp = '+' | '-' | '*' | '/' | '^'
 type ASTNode = string | number | {
-  op: 'sin' | 'cos' | 'log' | 'exp' | '-@'
+  op: UnaryOp
   a: ASTNode
 } | {
-  op: '+' | '-' | '*' | '/' | '^'
+  op: BinaryOp
   a: ASTNode
   b: ASTNode
 }
@@ -17,9 +25,10 @@ export const ast = {
   mult: (a: ASTNode, b: ASTNode) => ({ op: '*', a, b } as ASTNode),
   div: (a: ASTNode, b: ASTNode) => ({ op: '/', a, b } as ASTNode),
   pow: (a: ASTNode, b: ASTNode) => ({ op: '^', a, b } as ASTNode),
-  minus: (a: ASTNode) => ({ op: '-', a } as ASTNode),
+  minus: (a: ASTNode) => ({ op: '-@', a } as ASTNode),
   sin: (a: ASTNode) => ({ op: 'sin', a } as ASTNode),
   cos: (a: ASTNode) => ({ op: 'cos', a } as ASTNode),
+  f: (op: UnaryOp, a: ASTNode) => ({ op: op, a } as ASTNode),
   exp: (a: ASTNode) => ({ op: 'exp', a } as ASTNode),
   log: (a: ASTNode) => ({ op: 'log', a } as ASTNode),
 }
@@ -46,10 +55,20 @@ export function compactAST(ast: ASTNode, constants: Record<string, number>): AST
     if (typeof a !== 'number') return ast
     switch (ast.op) {
       case '-@': return -a
-      case 'sin': return Math.sin(a)
-      case 'cos': return Math.cos(a)
       case 'exp': return Math.exp(a)
       case 'log': return Math.log(a)
+      case 'sin': return Math.sin(a)
+      case 'cos': return Math.cos(a)
+      case 'tan': return Math.tan(a)
+      case 'sinh': return Math.sinh(a)
+      case 'cosh': return Math.cosh(a)
+      case 'tanh': return Math.tanh(a)
+      case 'asin': return Math.asin(a)
+      case 'acos': return Math.acos(a)
+      case 'atan': return Math.atan(a)
+      case 'asinh': return Math.asinh(a)
+      case 'acosh': return Math.acosh(a)
+      case 'atanh': return Math.atanh(a)
     }
   }
 }
@@ -136,5 +155,5 @@ export function astToRangeInlineFunction(ast: ASTNode, constants: Record<string,
     nameGenerator
   )
   if (typeof result === 'number') return () => [result, result]
-  return eval((window as any).code =`(xmin,xmax,ymin,ymax)=>{${code};return [${result[0]},${result[1]}];}`)
+  return eval(`(xmin,xmax,ymin,ymax)=>{${code};return [${result[0]},${result[1]}];}`)
 }
