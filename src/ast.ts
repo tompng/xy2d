@@ -84,10 +84,18 @@ export function astToCode(ast: ASTNode, args: Set<string>): string {
   }
   const a = astToCode(ast.a, args)
   const b = 'b' in ast ? astToCode(ast.b, args) : undefined
-  if (ast.op == '^') return `(${a}**${b})`
-  if (ast.op == '-@') return `(-${a})`
-  if ('b' in ast) return `(${a}${ast.op}${b})`
-  return `Math.${ast.op}(${a})`
+  switch (ast.op) {
+    case '^': return `(${a}**${b})`
+    case '-@': return `(-${a})`
+    case '+':
+    case '-':
+    case '*':
+    case '/':
+      return `(${a}${ast.op}${b})`
+    default:
+      if ('b' in ast) return `Math.${ast.op}(${a},${b})`
+      return `Math.${ast.op}(${a})`
+  }
 }
 export function astToRangeCode(ast: ASTNode, args: Set<string>): string | number {
   if (typeof ast === 'number') return ast
