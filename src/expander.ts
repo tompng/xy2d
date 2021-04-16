@@ -272,57 +272,47 @@ const hypot: Expander = (a, b, namer) => {
 const atan2: Expander = (y, x, namer) => {
   if (typeof y === 'number') {
     if (typeof x === 'number') return [Math.atan2(y, x), '']
-    if (y === 0) {
-      const [xmin, xmax] = x
-      const minvar = namer()
-      const maxvar = namer()
-      const code = `const ${minvar}=${xmax}<0?${Math.PI}:0,${maxvar}=${xmin}<0?${Math.PI}:0`
-      return [[minvar, maxvar], code]
-    }
-    const [xpy, xpycode] = mult(x, 1 / y, namer)
-    const [at1, at1code] = atan(xpy, 0, namer)
-    const [at2, at2code] = sub(y > 0 ? Math.PI / 2 : Math.PI * 3 / 2, at1, namer)
-    return [at2, [xpycode, at1code, at2code].join(';')]
+    const [xmin, xmax] = x
+    const minvar = namer()
+    const maxvar = namer()
+    const t1 = namer()
+    const t2 = namer()
+    const code = [
+      `const ${t1}=Math.atan2(${y},${xmin}),${t2}=Math.atan2(${y},${xmax})`,
+      `const ${minvar}=${t1}<${t2}?${t1}:${t2},${maxvar}=${t1}<${t2}?${t2}:${t1}`
+    ].join(';')
+    return [[minvar, maxvar], code]
   }
   const [ymin, ymax] = y
   if (typeof x === 'number') {
-    if (x === 0) {
-      const minvar = namer()
-      const maxvar = namer()
-      const th1 = Math.PI / 2
-      const th2 = Math.PI * 3 / 2
-      const code = `const ${minvar}=0<${ymax}?${th1}:${th2},${maxvar}=0<${ymin}?${th1}:${th2}`
-      return [[minvar, maxvar], code]
-    }
-    const [ypx, ypxcode] = mult(y, 1 / x, namer)
-    const [at1, at1code] = atan(ypx, 0, namer)
-    if (x < 0) {
-      const [at2, at2code] = add(at1, Math.PI, namer)
-      return [at2, [ypxcode, at1code, at2code].join('')]
-    }
-    const [tmin, tmax] = at1 as MinMaxVarName
     const minvar = namer()
     const maxvar = namer()
+    const t1 = namer()
+    const t2 = namer()
+    const assign = `${minvar}=${t1}<${t2}?${t1}:${t2};${maxvar}=${t1}<${t2}?${t2}:${t1}`
     const code = [
-      ypxcode,
-      at1code,
-      `const ${minvar}=${ymin}>=0?${tmin}:${ymax}>0?0:${tmin + Math.PI},${maxvar}=${ymin}>=0?${tmax}:${ymax}>0?${Math.PI}:${tmax + Math.PI}`,
+      `const ${t1}=Math.atan2(${ymin},${x}),${t2}=Math.atan2(${ymax},${x})`,
+      `let ${minvar},${maxvar}`,
+      x > 0 ? assign : `if(${ymin}<0&&${ymax}>0){${minvar}=${-Math.PI};${maxvar}=${Math.PI}}else{${assign}}`
     ].join(';')
     return [[minvar, maxvar], code]
   }
   const [xmin, xmax] = x
   const minvar = namer()
   const maxvar = namer()
-  const [ypx, ypxcode] = div(y, x, namer)
-  const [[atanmin, atanmax], atancode] = atan(ypx, 0, namer) as [MinMaxVarName, string]
+  const v1 = namer()
+  const v2 = namer()
+  const v3 = namer()
+  const v4 = namer()
   const code = [
     `let ${minvar},${maxvar};`,
-    `if(${xmax}<0){${ypxcode};${atancode};${minvar}=${atanmin}+${Math.PI};${maxvar}=${atanmax}+${Math.PI}}`,
-    `else if(${xmin}>0){`,
-    `if(${ymin}>0){${ypxcode};${atancode};${minvar}=${atanmin};${maxvar}=${atanmax}}`,
-    `else if(${ymax}<0){${ypxcode};${atancode};${minvar}=${atanmin}+${2 * Math.PI};${maxvar}=${atanmax}+${2 * Math.PI}}`,
-    `else{${minvar}=0;${maxvar}=${2 * Math.PI}}`,
-    `TODO`,
+    `if(${xmin}<0&&${ymin}<0&&${ymax}>0){${minvar}=${-Math.PI};${maxvar}=${Math.PI}}`,
+    `else{const `,
+      `${v1}=Math.atan2(${ymin},${xmin}),`,
+      `${v2}=Math.atan2(${ymin},${xmax}),`,
+      `${v3}=Math.atan2(${ymax},${xmin}),`,
+      `${v4}=Math.atan2(${ymax},${xmax});`,
+      `${minvar}=Math.min(${v1},${v2},${v3},${v4});${maxvar}=Math.max(${v1},${v2},${v3},${v4})`,
     `}`
   ].join('')
   return [[minvar, maxvar], code]
