@@ -1,27 +1,22 @@
-import { VRange } from './range'
-import { ast, astToFunction, astToRangeFunction, astToRangeInlineFunction } from './ast'
+import { ast, astToFunction, astToRangeFunction } from './ast'
 
 
 
 const circleAST = ast.add(ast.add(ast.mult('x', 'x'), ast.mult('y', 'y')), -1)
 const fAST = ast.mult(circleAST, ast.add(ast.add('x', ast.mult('y', 'x')), 1))
 
-const finline = astToRangeInlineFunction(fAST)
+const frange = astToRangeFunction(fAST)
 
 
-
-const frangeBase = astToRangeFunction(fAST)
-const frange: Fxy = (xmin, xmax, ymin, ymax) => frangeBase([xmin, xmax], [ymin, ymax])
-const f = finline
 const fvalue = astToFunction(fAST)
 ;(window as any).frange = frange
-;(window as any).frangeBase = frangeBase
-;(window as any).finline = finline
 ;(window as any).fvalue = fvalue
 
 function sleep(ms: number) {
   return new Promise<void>(resolve => setTimeout(resolve, ms))
 }
+
+type VRange = [number, number]
 
 type Fxy = (xmin: number, xmax: number, ymin: number, ymax: number) => VRange
 
@@ -37,6 +32,7 @@ class Solver {
     this.queue.push([...x, ...y, Math.round(w), Math.round(h), 0])
   }
   runStep() {
+    const f = this.f
     if (this.queue.length === 0) {
       this.completed = true
       return
@@ -105,6 +101,7 @@ onload = () => {
   const coords: [number, number][] = []
   ;(window as any).coords = coords
   ;(window as any).ctx = ctx
+  const f = frange
   const solver = new Solver(f, [-1.2, 1.2], [-1.2, 1.2], 128, 128, ([xmin, xmax], [ymin, ymax], step, sign) => {
     // if (step != 6) return
     if (sign === 0) {
@@ -150,7 +147,4 @@ onload = () => {
   })
   solver.run()
 }
-
-;(window as any).f = f
-
 

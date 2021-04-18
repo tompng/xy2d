@@ -1,5 +1,3 @@
-import * as range from "./range"
-import type { VRange } from "./range"
 import { expanders, Expander, MinMaxVarName, NameGenerator } from "./expander"
 
 
@@ -127,29 +125,22 @@ export function astToFunction(ast: ASTNode, constants: Record<string, number> = 
   return eval(`(x, y) => ${astToCode(compactAST(ast, constants), args)}`)
 }
 
-export function astToRangeFunction(ast: ASTNode, constants: Record<string, number> = {}): (x: VRange, y: VRange) => VRange {
-  const injects = Object.keys(range).join(',')
-  const args = new Set(['x', 'y'])
-  const code = `({ ${injects} }) => (x, y) => ${astToRangeCode(compactAST(ast, constants), args)}`
-  return eval(code)(range)
-}
-
-function astToRangeInlineVarCode(ast: ASTNode, args: Record<string, MinMaxVarName>, expanders: Record<string, Expander>, namer: NameGenerator): [MinMaxVarName | number, string] {
+function astToRangeVarNameCode(ast: ASTNode, args: Record<string, MinMaxVarName>, expanders: Record<string, Expander>, namer: NameGenerator): [MinMaxVarName | number, string] {
   if (typeof ast === 'number') return [ast, '']
   if (typeof ast === 'string') {
     const varname = args[ast]
     if (!varname) throw new Error(`Unknown constant or variable: ${ast}`)
     return [varname, '']
   }
-  const [a, acode] = astToRangeInlineVarCode(ast.a, args, expanders, namer)
-  const [b, bcode] = 'b' in ast ? astToRangeInlineVarCode(ast.b, args, expanders, namer) : [0, '']
+  const [a, acode] = astToRangeVarNameCode(ast.a, args, expanders, namer)
+  const [b, bcode] = 'b' in ast ? astToRangeVarNameCode(ast.b, args, expanders, namer) : [0, '']
   const expander = expanders[ast.op]
   if (!expander) throw new Error(`Expander undefined for: ${ast.op}`)
   const [c, ccode] = expander(a, b, namer)
   return [c, acode + ';' + bcode + ';' + ccode]
 }
 
-export function astToRangeInlineFunction(ast: ASTNode, constants: Record<string, number> = {}): (xmin: number, xmax: number, ymin: number, ymax: number) => VRange {
+export function astToRangeFunction(ast: ASTNode, constants: Record<string, number> = {}): (xmin: number, xmax: number, ymin: number, ymax: number) => [number, number] {
   let nameGeneratorIndex = 0
   const nameGenerator = () => {
     let n = nameGeneratorIndex++
@@ -160,7 +151,7 @@ export function astToRangeInlineFunction(ast: ASTNode, constants: Record<string,
     }
     return name
   }
-  const [result, code] = astToRangeInlineVarCode(
+  const [result, code] = astToRangeVarNameCode(
     compactAST(ast, constants),
     { x: ['xmin', 'xmax'], y: ['ymin', 'ymax']},
     expanders,
