@@ -26,9 +26,10 @@ onload = () => {
   ;(window as any).ctx = ctx
   const solver = new SimpleSolver(frange, fvalue, { x: -1.2, y: -1.2, size: 2.4 }, 512, () => {})
   const t = performance.now()
-  const result = solver.calculateRange(1)
-  console.log(performance.now() - t, result.length / 2)
+  solver.calculateRange(1)
+  console.log(performance.now() - t)
   const ar = solver.areaResults
+  solver.calculate()
   ;(window as any).ar = ar
   for (let i = 0; i < ar.length;) {
     const x = ar[i++]
@@ -37,5 +38,14 @@ onload = () => {
     const sgn = ar[i++]
     ctx.fillStyle = sgn < 0 ? '#eff' : '#fef'
     ctx.fillRect(size*x, size*y, size*s, size*s)
+  }
+  const pr = solver.pointResults
+  ctx.fillStyle = 'black'
+  for (let i = 0; i < pr.length;) {
+    const x = pr[i++]
+    const y = pr[i++]
+    ctx.beginPath()
+    ctx.arc(x, y, 1, 0, 2 * Math.PI)
+    ctx.fill()
   }
 }
