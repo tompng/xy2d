@@ -1,0 +1,107 @@
+type VRange = [number, number]
+type FRange = (xmin: number, xmax: number, ymin: number, ymax: number) => VRange
+type FValue = (x: number, y: number) => number
+type RangeCallback = (x: VRange, y: VRange, step: number, sign: 1 | -1 | 0) => void
+
+export class Solver {
+  stepPerRun = 4
+  completed = false
+  aborted = false
+  areaResults: number[] = []
+  pointResults: number[] = []
+  constructor(
+    public fRange: FRange,
+    public fValue: FValue,
+    public range: { x: number; y: number; size: number },
+    public resolution: number,
+    public onUpdate: (s: Solver) => void
+  ) {}
+  calculate() {
+    const minRanges = this.calculateRange(1)
+    this.calculateLine(minRanges)
+  }
+  calculateLine(minRanges: number[]) {
+    const baskets: (number[] | undefined)[] = []
+    for (let i = 0; i < minRanges.length; i += 2) {
+      const xi = minRanges[i]
+      const yi = minRanges[i + 1]
+      ;(baskets[yi] ||= []).push(xi)
+    }
+    const { x, y, size } = this.range
+    const s = size / this.resolution
+    const { fValue } = this
+    let prevFs: (number)[] = new Array(this.resolution + 1).fill(0)
+    let prevFs2: (number)[] = new Array(this.resolution + 1).fill(0)
+    let yj = 0
+    baskets.forEach((xs, yi) => {
+      if (!xs) return
+      if (yj !== y) {
+        let xj = 0
+        xs.forEach(xi => {
+          if (xj !== xi) prevFs[xi] = fValue(x + xi * s, y + yi * s)
+          prevFs[xj = xi + 1] = fValue(x + (xi + 1) * s, y + yi * s)
+        })
+      }
+      let xj = 0
+      xs.forEach(xi => {
+        const a = prevFs[xi]
+        const b = prevFs[xi + 1]
+        const c = xj === xi ? prevFs2[xi] : prevFs2[xi] = fValue(x + xi * s, y + (yi + 1) * s)
+        const d = prevFs2[xj = xi + 1] = fValue(x + (xi + 1) * s, y + (yi + 1) * s)
+        let px = 0
+        let py = 0
+        let pw = 0
+        if (a * b < 0) { px += xi + a / (a - b); py += yi; pw ++ }
+        if (a * c < 0) { px += xi; py += yi + a / (a - c); pw ++ }
+        if (b * d < 0) { px += xi + 1; py += yi + b / (b - d); pw ++ }
+        if (c * d < 0) { px += xi + c / (c - d); py += yi + 1; pw ++ }
+        if (pw !== 0) this.pointResults.push(px / pw, py / pw)
+      })
+      ;[prevFs, prevFs2] = [prevFs2, prevFs]
+      yj = y + 1
+    })
+    ;(window as any).bsk = baskets
+    console.log(baskets.length)
+  }
+  calculateRange(minRes: number): number[] {
+    const { fRange, resolution, areaResults } = this
+    const { x, y, size } = this.range
+    const [min, max] = fRange(x, x + size, y, y + size)
+    const sgn = max < 0 ? -1 : 0 < min ? +1 : 0
+    if (sgn !== 0) {
+      areaResults.push(0, 0, 1, sgn)
+      return []
+    }
+    let queue = new Array(64).fill(0)
+    let queue2 = new Array(64).fill(0)
+    let queueLength = 2
+    let res = resolution
+    while (res >= minRes && queueLength > 0) {
+      let len2 = 0
+      let dt = res / resolution
+      let s = size * dt
+      for (let i = 0; i < queueLength; i += 2) {
+        const u = queue[i]
+        const v = queue[i + 1]
+        const [min, max] = fRange(x + u * s, x + (u + 1) * s, y + v * s, y + (v + 1) * s)
+        const sgn = max < 0 ? -1 : 0 < min ? +1 : 0
+        if (sgn !== 0) {
+          areaResults.push(u * dt, v * dt, dt, sgn)
+        } else if (res > minRes) {
+          for (let j = 0; j < 4; j++) {
+            queue2[len2++] = 2 * u + (j & 1)
+            queue2[len2++] = 2 * v + (j >> 1)
+          }
+        } else {
+          queue2[len2++] = u
+          queue2[len2++] = v
+        }
+      }
+      [queue, queue2] = [queue2, queue]
+      queueLength = len2
+      res /= 2
+    }
+    queue.length = queueLength
+    return queue
+  }
+}
