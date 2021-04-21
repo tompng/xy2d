@@ -51,10 +51,26 @@ export class Solver {
         let px = 0
         let py = 0
         let pw = 0
-        if (a * b < 0) { px += xi + a / (a - b); py += yi; pw ++ }
-        if (a * c < 0) { px += xi; py += yi + a / (a - c); pw ++ }
-        if (b * d < 0) { px += xi + 1; py += yi + b / (b - d); pw ++ }
-        if (c * d < 0) { px += xi + c / (c - d); py += yi + 1; pw ++ }
+        if (a * b <= 0) {
+          px += xi + (a === b ? 0.5 : a / (a - b))
+          py += yi
+          pw ++
+        }
+        if (a * c <= 0) {
+          px += xi
+          py += yi + (a === c ? 0.5 : a / (a - c))
+          pw ++
+        }
+        if (b * d <= 0) {
+          px += xi + 1
+          py += yi + (b === d ? 0.5 : b / (b - d))
+          pw ++
+        }
+        if (c * d <= 0) {
+          px += xi + (c === d ? 0.5 : c / (c - d))
+          py += yi + 1
+          pw ++
+        }
         if (pw !== 0) this.pointResults.push(px / pw, py / pw)
       })
       ;[prevFs, prevFs2] = [prevFs2, prevFs]
