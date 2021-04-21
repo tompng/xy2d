@@ -71,7 +71,7 @@ export class Solver {
           py += yi + 1
           pw ++
         }
-        if (pw !== 0) this.pointResults.push(px / pw, py / pw)
+        if (pw !== 0) this.pointResults.push(xi, yi, px / pw, py / pw)
       })
       ;[prevFs, prevFs2] = [prevFs2, prevFs]
       yj = y + 1
