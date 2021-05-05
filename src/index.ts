@@ -2,7 +2,9 @@ import { ast, astToFunction, astToRangeFunction } from './ast'
 import { Solver as SimpleSolver } from './solver'
 
 const circleAST = ast.add(ast.add(ast.mult('x', 'x'), ast.mult('y', 'y')), -1)
-const fAST = ast.mult(circleAST, ast.add(ast.add('x', ast.mult('y', 'x')), 1))
+const gAST = ast.mult(circleAST, ast.add(ast.add('x', ast.mult('y', 'x')), 1))
+const divxyAST = ast.div(1, ast.add('x', 'y'))
+const fAST = ast.mult(gAST, divxyAST)
 const frange = astToRangeFunction(fAST)
 const fvalue = astToFunction(fAST)
 ;(window as any).frange = frange
@@ -30,18 +32,18 @@ onload = () => {
   console.log(performance.now() - t)
   const ar = solver.areaResults
   const pr = solver.pointResults
-  const lines = pointsToLines(pr, size)
   console.log(performance.now() - t)
   ;(window as any).ar = ar
   for (let i = 0; i < ar.length;) {
     const x = ar[i++]
     const y = ar[i++]
     const s = ar[i++]
-    const sgn = ar[i++]
-    ctx.fillStyle = sgn < 0 ? '#eff' : '#fef'
+    const result = ar[i++]
+    ctx.fillStyle = ['#aaa', '#aff', '#faf'][result]
+    ctx.globalAlpha = 0.5+0.5*Math.random()
     ctx.fillRect(size*x, size*y, size*s, size*s)
+    ctx.globalAlpha = 1
   }
-  console.log(lines.length)
   ctx.fillStyle = 'black'
   for (let i = 0; i < pr.length; i += 4) {
     const x = pr[i + 2]
@@ -51,14 +53,16 @@ onload = () => {
     ctx.arc(x, y, 2, 0, 2 * Math.PI)
     ctx.fill()
   }
-  ctx.lineWidth = 4
-  ctx.strokeStyle = 'red'
-  lines.forEach((line) => {
-    ctx.beginPath()
-    ctx.moveTo(line[0], line[1])
-    for (let i = 2; i < line.length; i += 2) ctx.lineTo(line[i], line[i + 1])
-    ctx.stroke()
-  })
+  // const lines = pointsToLines(pr, size)
+  // console.log(lines.length)
+  // ctx.lineWidth = 4
+  // ctx.strokeStyle = 'red'
+  // lines.forEach((line) => {
+  //   ctx.beginPath()
+  //   ctx.moveTo(line[0], line[1])
+  //   for (let i = 2; i < line.length; i += 2) ctx.lineTo(line[i], line[i + 1])
+  //   ctx.stroke()
+  // })
 }
 
 // points: [xi, yi, x, y, ...]

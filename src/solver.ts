@@ -1,7 +1,6 @@
-type VRange = [number, number]
-type FRange = (xmin: number, xmax: number, ymin: number, ymax: number) => VRange
+import type { RangeResult } from './expander'
+type FRange = (xmin: number, xmax: number, ymin: number, ymax: number) => RangeResult
 type FValue = (x: number, y: number) => number
-type RangeCallback = (x: VRange, y: VRange, step: number, sign: 1 | -1 | 0) => void
 
 export class Solver {
   stepPerRun = 4
@@ -82,10 +81,9 @@ export class Solver {
   calculateRange(minRes: number): number[] {
     const { fRange, resolution, areaResults } = this
     const { x, y, size } = this.range
-    const [min, max] = fRange(x, x + size, y, y + size)
-    const sgn = max < 0 ? -1 : 0 < min ? +1 : 0
-    if (sgn !== 0) {
-      areaResults.push(0, 0, 1, sgn)
+    const result = fRange(x, x + size, y, y + size)
+    if (result >= 0) {
+      areaResults.push(0, 0, 1, result)
       return []
     }
     let queue = new Array(64).fill(0)
@@ -99,16 +97,15 @@ export class Solver {
       for (let i = 0; i < queueLength; i += 2) {
         const u = queue[i]
         const v = queue[i + 1]
-        const [min, max] = fRange(x + u * s, x + (u + 1) * s, y + v * s, y + (v + 1) * s)
-        const sgn = max < 0 ? -1 : 0 < min ? +1 : 0
-        if (sgn !== 0) {
-          areaResults.push(u * dt, v * dt, dt, sgn)
+        const result = fRange(x + u * s, x + (u + 1) * s, y + v * s, y + (v + 1) * s)
+        if (result >= 0) {
+          areaResults.push(u * dt, v * dt, dt, result)
         } else if (res > minRes) {
           for (let j = 0; j < 4; j++) {
             queue2[len2++] = 2 * u + (j & 1)
             queue2[len2++] = 2 * v + (j >> 1)
           }
-        } else {
+        } else if (result === -1){
           queue2[len2++] = u
           queue2[len2++] = v
         }
