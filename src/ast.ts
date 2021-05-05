@@ -1,4 +1,4 @@
-import { expanders, results, GAPMARK, Expander, MinMaxVarName, NameGenerator, RangeResult } from "./expander"
+import { expanders, results, GAPMARK, NANMARK, Expander, MinMaxVarName, NameGenerator, RangeResult } from "./expander"
 
 
 type UnaryOp =
@@ -6,7 +6,7 @@ type UnaryOp =
   | 'sin' | 'cos' | 'tan'
   | 'sinh' | 'cosh' | 'tanh'
   | 'asin' | 'acos' | 'atan'
-  | 'asinh' | 'acosh' | 'atanh'
+  | 'asinh' | 'acosh' | 'atanh' | 'sqrt'
 type BinaryOp = '+' | '-' | '*' | '/' | '^' | 'hypot' | 'atan2'
 type ASTNode = string | number | {
   op: UnaryOp
@@ -28,6 +28,7 @@ export const ast = {
   cos: (a: ASTNode) => ({ op: 'cos', a } as ASTNode),
   f1: (op: UnaryOp, a: ASTNode) => ({ op: op, a } as ASTNode),
   f2: (op: BinaryOp, a: ASTNode, b: ASTNode) => ({ op: op, a, b } as ASTNode),
+  sqrt: (a: ASTNode) => ({ op: 'sqrt', a } as ASTNode),
   exp: (a: ASTNode) => ({ op: 'exp', a } as ASTNode),
   log: (a: ASTNode) => ({ op: 'log', a } as ASTNode),
 }
@@ -58,6 +59,7 @@ export function compactAST(ast: ASTNode, constants: Record<string, number>): AST
       case '-@': return -a
       case 'exp': return Math.exp(a)
       case 'log': return Math.log(a)
+      case 'sqrt': return Math.sqrt(a)
       case 'sin': return Math.sin(a)
       case 'cos': return Math.cos(a)
       case 'tan': return Math.tan(a)
@@ -164,9 +166,15 @@ export function astToRangeFunction(ast: ASTNode, constants: Record<string, numbe
     return eval(`${argsPart}=>${val}`)
   }
   const gapTest = code.includes(GAPMARK)
-  const preparePart = gapTest ? 'let gap=false;' : ''
+  const nanTest = code.includes(NANMARK)
+  const gapPrepare = gapTest ? 'let _gap=false;' : ''
+  const nanPrepare = nanTest ? 'let _nan=false;' : ''
+  const preparePart = gapPrepare + nanPrepare
   const [minvar, maxvar] = result
-  const bothPart = gapTest ? `gap?${results.GAP}:${results.BOTH}` : results.BOTH
+  const markEmbeddedCode = code.replaceAll(GAPMARK, '_gap=true;').replaceAll(NANMARK, '_nan=true;')
+  const gapRetPart = gapTest ? `_gap?${results.HASGAP}:` : ''
+  const nanRetPart = nanTest ? `_nan?${results.HASNAN}:` : ''
+  const bothPart = gapRetPart + nanRetPart + results.BOTH
   const returnPart = `return ${minvar}>${epsilon}?${results.POS}:${maxvar}<${-epsilon}?${results.NEG}:${bothPart}`
-  return eval(`${argsPart}=>{${preparePart}${code.replaceAll(GAPMARK, 'gap=true;')};${returnPart}}`)
+  return eval(`${argsPart}=>{${preparePart}${markEmbeddedCode};${returnPart}}`)
 }

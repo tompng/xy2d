@@ -2,15 +2,17 @@ export type MinMaxVarName = [string, string]
 export type Expander = (a: MinMaxVarName | number, b: MinMaxVarName | number, namer: NameGenerator) => [MinMaxVarName | number, string]
 export type NameGenerator = () => string
 
-export type RangeResult = -2 | -1 | 0 | 1 | 2 | 3
-const GAP = -2
+export type RangeResult = -3 | -2 | -1 | 0 | 1 | 2 | 3
+const HASGAP = -3
+const HASNAN = -2
 const BOTH = -1
 const ZERO = 0
 const NEG = 1
 const POS = 2
 const NAN = 3
-export const results = { NEG, POS, BOTH, GAP, NAN, ZERO }
+export const results = { NEG, POS, BOTH, HASGAP, HASNAN, NAN, ZERO }
 export const GAPMARK = '/*GAP*/'
+export const NANMARK = '/*NAN*/'
 
 const add: Expander = (a, b, namer) => {
   if (typeof a === 'number' && typeof b === 'number') return [a + b, '']
@@ -203,8 +205,8 @@ function createMonotonicExpander(func: (v: number) => number, funcName: string, 
     const minvar = namer()
     const maxvar = namer()
     const conditions: string[] = []
-    if (rangeMin) conditions.push(`if(${max}<=${rangeMin[0]})return ${NAN};`)
-    if (rangeMax) conditions.push(`if(${rangeMax[0]}<=${min})return ${NAN};`)
+    if (rangeMin) conditions.push(`if(${min}<${rangeMin[0]}){if(${max}<=${rangeMin[0]})return ${NAN};${NANMARK}}`)
+    if (rangeMax) conditions.push(`if(${rangeMax[0]}<${max}){if(${rangeMax[0]}<=${min})return ${NAN};${NANMARK}}`)
     const lcode = rangeMin ? `${min}<=${rangeMin[0]}?${rangeMin[1]}:${funcName}(${min});` : `${funcName}(${min})`
     const rcode = rangeMax ? `${rangeMax[0]}<=${max}?${rangeMax[1]}:${funcName}(${max});` : `${funcName}(${max})`
     const vcode = `${minvar}=${type === 'inc' ? lcode : rcode};${maxvar}=${type === 'inc' ? rcode : lcode}`

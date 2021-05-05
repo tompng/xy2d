@@ -105,7 +105,7 @@ export class Solver {
             queue2[len2++] = 2 * u + (j & 1)
             queue2[len2++] = 2 * v + (j >> 1)
           }
-        } else if (result === -1){
+        } else if (result >= -2) {
           queue2[len2++] = u
           queue2[len2++] = v
         }

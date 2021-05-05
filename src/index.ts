@@ -39,7 +39,7 @@ onload = () => {
     const y = ar[i++]
     const s = ar[i++]
     const result = ar[i++]
-    ctx.fillStyle = ['#aaa', '#aff', '#faf'][result]
+    ctx.fillStyle = ['#aaa', '#aff', '#faf', '#eee'][result]
     ctx.globalAlpha = 0.5+0.5*Math.random()
     ctx.fillRect(size*x, size*y, size*s, size*s)
     ctx.globalAlpha = 1
