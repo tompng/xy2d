@@ -1,4 +1,4 @@
-import { expanders, Expander, MinMaxVarName, NameGenerator } from "./expander"
+import { expanders, results, GAPMARK, Expander, MinMaxVarName, NameGenerator, RangeResult } from "./expander"
 
 
 type UnaryOp =
@@ -140,7 +140,7 @@ function astToRangeVarNameCode(ast: ASTNode, args: Record<string, MinMaxVarName>
   return [c, acode + ';' + bcode + ';' + ccode]
 }
 
-export function astToRangeFunction(ast: ASTNode, constants: Record<string, number> = {}): (xmin: number, xmax: number, ymin: number, ymax: number) => [number, number] {
+export function astToRangeFunction(ast: ASTNode, constants: Record<string, number> = {}): (xmin: number, xmax: number, ymin: number, ymax: number) => RangeResult {
   let nameGeneratorIndex = 0
   const nameGenerator = () => {
     let n = nameGeneratorIndex++
@@ -157,6 +157,16 @@ export function astToRangeFunction(ast: ASTNode, constants: Record<string, numbe
     expanders,
     nameGenerator
   )
-  if (typeof result === 'number') return () => [result, result]
-  return eval(`(xmin,xmax,ymin,ymax)=>{${code};return [${result[0]},${result[1]}];}`)
+  const epsilon = 1e-15
+  const argsPart = '(xmin,xmax,ymin,ymax)'
+  if (typeof result === 'number') {
+    const val = isNaN(result) ? results.NAN : result < -epsilon ? results.NEG : result > epsilon ? results.POS : results.ZERO
+    return eval(`${argsPart}=>${val}`)
+  }
+  const gapTest = code.includes(GAPMARK)
+  const preparePart = gapTest ? 'let gap=false;' : ''
+  const [minvar, maxvar] = result
+  const bothPart = gapTest ? `gap?${results.GAP}:${results.BOTH}` : results.BOTH
+  const returnPart = `return ${minvar}>${epsilon}?${results.POS}:${maxvar}<${-epsilon}?${results.NEG}:${bothPart}`
+  return eval(`${argsPart}=>{${preparePart}${code.replaceAll(GAPMARK, 'gap=true;')};${returnPart}}`)
 }

@@ -2,6 +2,16 @@ export type MinMaxVarName = [string, string]
 export type Expander = (a: MinMaxVarName | number, b: MinMaxVarName | number, namer: NameGenerator) => [MinMaxVarName | number, string]
 export type NameGenerator = () => string
 
+export type RangeResult = -2 | -1 | 0 | 1 | 2 | 3
+const GAP = -2
+const BOTH = -1
+const ZERO = 0
+const NEG = 1
+const POS = 2
+const NAN = 3
+export const results = { NEG, POS, BOTH, GAP, NAN, ZERO }
+export const GAPMARK = '/*GAP*/'
+
 const add: Expander = (a, b, namer) => {
   if (typeof a === 'number' && typeof b === 'number') return [a + b, '']
   const minvar = namer()
@@ -94,7 +104,7 @@ function inv(value: MinMaxVarName | number, namer: NameGenerator): [MinMaxVarNam
   const maxvar = namer()
   const codes = [
     `let ${minvar},${maxvar};`,
-    `if(${min}<=0&&0<=${max}){${minvar}=${min}===0&&${max}!==0?1/${max}:-Infinity;${maxvar}=${min}!==0&&${max}===0?1/${min}:Infinity}`,
+    `if(${min}<=0&&0<=${max}){${GAPMARK};${minvar}=${min}===0&&${max}!==0?1/${max}:-Infinity;${maxvar}=${min}!==0&&${max}===0?1/${min}:Infinity}`,
     `else{${minvar}=1/${max};${maxvar}=1/${min}}`
   ]
   return [[minvar, maxvar], codes.join('')]
@@ -193,15 +203,15 @@ function createMonotonicExpander(func: (v: number) => number, funcName: string, 
     const minvar = namer()
     const maxvar = namer()
     const conditions: string[] = []
-    if (rangeMin) conditions.push(`if(${max}<=${rangeMin[0]}){${minvar}=${maxvar}=${rangeMin[1]}}`)
-    if (rangeMax) conditions.push(`${conditions.length === 0 ? '' : 'else '}if(${rangeMax[0]}<=${min}){${minvar}=${maxvar}=${rangeMax[1]}}`)
+    if (rangeMin) conditions.push(`if(${max}<=${rangeMin[0]})return ${NAN};`)
+    if (rangeMax) conditions.push(`if(${rangeMax[0]}<=${min})return ${NAN};`)
     const lcode = rangeMin ? `${min}<=${rangeMin[0]}?${rangeMin[1]}:${funcName}(${min});` : `${funcName}(${min})`
     const rcode = rangeMax ? `${rangeMax[0]}<=${max}?${rangeMax[1]}:${funcName}(${max});` : `${funcName}(${max})`
     const vcode = `${minvar}=${type === 'inc' ? lcode : rcode};${maxvar}=${type === 'inc' ? rcode : lcode}`
     const code = [
       `let ${minvar},${maxvar};`,
-      conditions.join(''),
-      conditions.length === 0 ? vcode : `else{${vcode}}`
+      ...conditions,
+      vcode
     ].join('')
     return [[minvar, maxvar], code]
   }
@@ -293,7 +303,7 @@ const atan2: Expander = (y, x, namer) => {
     const code = [
       `const ${t1}=Math.atan2(${ymin},${x}),${t2}=Math.atan2(${ymax},${x})`,
       `let ${minvar},${maxvar}`,
-      x > 0 ? assign : `if(${ymin}<0&&${ymax}>0){${minvar}=${-Math.PI};${maxvar}=${Math.PI}}else{${assign}}`
+      x > 0 ? assign : `if(${ymin}<0&&${ymax}>0){${GAPMARK};${minvar}=${-Math.PI};${maxvar}=${Math.PI}}else{${assign}}`
     ].join(';')
     return [[minvar, maxvar], code]
   }
@@ -306,7 +316,7 @@ const atan2: Expander = (y, x, namer) => {
   const v4 = namer()
   const code = [
     `let ${minvar},${maxvar};`,
-    `if(${xmin}<0&&${ymin}<0&&${ymax}>0){${minvar}=${-Math.PI};${maxvar}=${Math.PI}}`,
+    `if(${xmin}<0&&${ymin}<0&&${ymax}>0){${GAPMARK};${minvar}=${-Math.PI};${maxvar}=${Math.PI}}`,
     `else{const `,
       `${v1}=Math.atan2(${ymin},${xmin}),`,
       `${v2}=Math.atan2(${ymin},${xmax}),`,
@@ -317,8 +327,6 @@ const atan2: Expander = (y, x, namer) => {
   ].join('')
   return [[minvar, maxvar], code]
 }
-
-
 
 export const expanders = {
   '+': add,
