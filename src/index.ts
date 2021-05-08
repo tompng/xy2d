@@ -3,11 +3,10 @@ import { Solver as SimpleSolver } from './solver'
 import { parse } from './parser'
 ;(window as any).parse = parse
 
-// bugs
+// FIXME
 // y+sqrt(x+y) # NaN check bug
 // x-x # render too slow
 // xy^2>1 # (xy)^2 x(y^2)
-// sin2x y # parse infinite loop
 // xy+x-x # white area
 
 const circleAST = ast.add(ast.add(ast.mult('x', 'x'), ast.mult('y', 'y')), -1)

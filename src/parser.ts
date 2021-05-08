@@ -54,6 +54,7 @@ function tokenize(group: ParenGroup): TokenParenGroup {
     const item = group[i]
     if (item === ' ') {
       if (out[out.length - 1] !== item) out.push(item)
+      i += 1
     } else if (typeof item === 'string') {
       const result = matchToken(pattern, i)
       if (!result) throw `Unexpected Token "${pattern[i]}"`
@@ -154,19 +155,19 @@ function splitByOp(group: TokenParenGroup, index: number): ASTNode {
     const left = ast
     const rgroup = groups[i + 1]
     const right = rgroup.length === 0 ? null : splitByOp(rgroup, index + 1)
-    if (!right) {
+    if (right == null) {
       if (op === ' ') return
       throw `No Right Hand Side: ${op}`
     } 
-    if (!left) {
+    if (left == null) {
       if (op === '-') ast = { op: '-@', a: right }
       else if (op === ' ') ast = right
       else throw `No Left Hand Side: ${op}`
     } else {
-      ast = { op, a: left, b: right } as ASTNode
+      ast = { op: op === ' ' ? '*' : op, a: left, b: right } as ASTNode
     }
   })
-  if (!ast) throw 'Unexpected Empty Group'
+  if (ast == null) throw 'Unexpected Empty Group'
   return ast
 }
 function buildAST(group: TokenParenGroup): ASTNode | ArgGroup {
