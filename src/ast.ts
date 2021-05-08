@@ -143,15 +143,17 @@ function astToRangeVarNameCode(ast: ASTNode, args: Record<string, MinMaxVarName>
 }
 
 export function astToRangeFunction(ast: ASTNode, constants: Record<string, number> = {}): (xmin: number, xmax: number, ymin: number, ymax: number) => RangeResult {
-  let nameGeneratorIndex = 0
+  let nameGeneratorIndex = 9
   const nameGenerator = () => {
     let n = nameGeneratorIndex++
+    const suffix = n % 10
+    n = (n - suffix) / 10
     let name = ''
     while (name === '' || n > 0) {
       name = String.fromCharCode('a'.charCodeAt(0) + n % 26) + name
       n = Math.floor(n / 26)
     }
-    return name
+    return name + suffix
   }
   const [result, code] = astToRangeVarNameCode(
     compactAST(ast, constants),
