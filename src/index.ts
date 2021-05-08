@@ -3,6 +3,13 @@ import { Solver as SimpleSolver } from './solver'
 import { parse } from './parser'
 ;(window as any).parse = parse
 
+// bugs
+// y+sqrt(x+y) # NaN check bug
+// x-x # render too slow
+// xy^2>1 # (xy)^2 x(y^2)
+// sin2x y # parse infinite loop
+// xy+x-x # white area
+
 const circleAST = ast.add(ast.add(ast.mult('x', 'x'), ast.mult('y', 'y')), -1)
 const gAST = ast.mult(circleAST, ast.add(ast.add('x', ast.mult('y', 'x')), 1))
 const divxyAST = ast.div(1, ast.add('x', 'y'))
@@ -32,7 +39,6 @@ function calc(exp: string) {
   console.log(performance.now() - t)
   const ar = solver.areaResults
   const pr = solver.pointResults
-  const fill = mode !== '='
   if (mode !== '=') {
     const colors = mode === '>' || mode === '>=' ? [null, null, '#aaf', null] : ['#aaa', '#aaf', '#faa', '#eee']
     for (let i = 0; i < ar.length;) {
