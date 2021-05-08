@@ -75,8 +75,6 @@ export class Solver {
       ;[prevFs, prevFs2] = [prevFs2, prevFs]
       yj = y + 1
     })
-    ;(window as any).bsk = baskets
-    console.log(baskets.length)
   }
   calculateRange(minRes: number): number[] {
     const { fRange, resolution, areaResults } = this

@@ -8,7 +8,7 @@ type UnaryOp =
   | 'asin' | 'acos' | 'atan'
   | 'asinh' | 'acosh' | 'atanh' | 'sqrt'
 type BinaryOp = '+' | '-' | '*' | '/' | '^' | 'hypot' | 'atan2'
-type ASTNode = string | number | {
+export type ASTNode = string | number | {
   op: UnaryOp
   a: ASTNode
 } | {
