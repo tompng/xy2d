@@ -109,7 +109,14 @@ function buildFuncMultPow(group: TokenParenGroup): ASTNode {
       const isPrevFunc = typeof prev === 'string' && functionNames.has(prev)
       if (v.type === 'args') {
         if (!isPrevFunc) throw 'Function Required'
-        mults.unshift({ op: prev, a: v.value[0], b: v.value[1] } as ASTNode)
+        const fcall = { op: prev, a: v.value[0], b: v.value[1] } as ASTNode
+        if (pow) {
+          mults.unshift({ op: '^', a: fcall, b: pow })
+          pow = undefined
+        } else {
+          mults.unshift(fcall)
+        }
+        index--
       } else {
         if (pow && !isPrevFunc) {
           mults.unshift({ op: '^', a: v.value, b: pow })

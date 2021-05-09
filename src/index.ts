@@ -15,6 +15,7 @@ function calc(exp: string) {
   }
   const frange = astToRangeFunction(ast, compareOption)
   const fvalue = astToFunction(ast)
+  console.log(fvalue)
   const size = 512
   canvas.width = size
   canvas.height = size
