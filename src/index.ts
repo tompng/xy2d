@@ -1,14 +1,13 @@
 import { astToFunction, astToRangeFunction } from './ast'
 import { parse } from './parser'
-import { Panel } from './view'
+import { Panel, View } from './view'
 ;(window as any).parse = parse
 
 function sleep(ms: number) {
   return new Promise<void>(resolve => setTimeout(resolve, ms))
 }
-let canvas = document.createElement('canvas')
 
-let panel: Panel | undefined
+let view: View | undefined
 function calc(exp: string) {
   const [ast, mode] = parse(exp)
   const compareOption = {
@@ -17,31 +16,56 @@ function calc(exp: string) {
   }
   const frange = astToRangeFunction(ast, compareOption)
   const fvalue = astToFunction(ast)
-  const resolution = 512
   const colors =
     mode === '=' ? { zero: '#aaa', line: 'black' } :
     mode === '>' ? { pos: '#aaf', line: '#444' } :
     mode === '>=' ? { zero: '#aaa', pos: '#aaf', line: 'black' } :
     { zero: '#aaa', neg: '#aaf', pos: '#faa', line: 'black' }
-  const range = { x: -1.2, y: -1.2, size: 2.4 }
-  if (!panel) {
-    const newPanel = new Panel(fvalue, frange, range, resolution, colors)
-    document.body.appendChild(newPanel.backgroundCanvas)
-    document.body.appendChild(newPanel.lineCanvas)
-    ;[newPanel.backgroundCanvas, newPanel.lineCanvas].forEach((canvas, i) => {
-      canvas.style.position = 'absolute'
-      canvas.style.left = `${40 - newPanel.offset * i}px`
-      canvas.style.top = `${40 - newPanel.offset * i}px`
-    })
-    panel = newPanel
-  } else {
-    panel.reset(fvalue, frange, range, resolution, colors)
+  if (view) {
+    view.release()
+    view.dom.remove()
   }
-  panel.render()
+  const newView = new View(fvalue, frange, colors)
+  document.body.appendChild(newView.dom)
+  newView.update(200)
+  newView.dom.style.overflow = 'hidden'
+
+  gesture(newView.dom, ({ dx, dy }) => {
+    const size = Math.min(newView.width, newView.height)
+    newView.center.x -= newView.viewSize * dx / size
+    newView.center.y += newView.viewSize * dy / size
+    newView.update()
+  })
+  view = newView
+  ;(window as any).view = newView
+}
+
+function gesture(dom: HTMLElement, cb: (e: { dx: number; dy: number }) => void) {
+  dom.addEventListener('wheel', e => {
+    cb({ dx: -e.deltaX, dy: -e.deltaY })
+    e.preventDefault()
+  })
+  const pointers = new Map<number, { x: number; y: number }>()
+  dom.addEventListener('pointerdown', e => {
+    pointers.set(e.pointerId, { x: e.screenX, y: e.screenY })
+  })
+  document.addEventListener('pointermove', e => {
+    const p = pointers.get(e.pointerId)
+    if (!p) return
+    const dx = e.screenX - p.x
+    const dy = e.screenY - p.y
+    p.x = e.screenX
+    p.y = e.screenY
+    cb({ dx, dy })
+  })
+  document.addEventListener('pointerup', e => {
+    pointers.delete(e.pointerId)
+  })
+
+
 }
 
 onload = () => {
-  document.body.appendChild(canvas)
   const input = document.querySelector('input')!
   document.querySelector('form')!.onsubmit = e => {
     e.preventDefault()
@@ -49,6 +73,7 @@ onload = () => {
     calc(value)
   }
   input.value = 'x^2+y^2>1'
+  input.value = '((sqrt(1/16^2+x^2)-1/3)^2+((11y-1)/12)^2-1/7)*((sqrt(x^2)-4/13)^2+(y-1/8)^2-1/9)*((sqrt(x^2)-2/7)^2+(y-1/6)^2-(2/11)^2)*(exp(-y-1/2-(3+(1.2-cos14x)^(1/4))/(5+(5/3*x(1+y/3))^16)*1.2/(1+exp(4y)))+exp(-6+3x+3y)+exp(-6-3x+3y)-2/3)'
   calc(input.value)
 }
 
