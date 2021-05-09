@@ -354,5 +354,6 @@ export const expanders = {
   acosh,
   atanh,
   hypot,
-  atan2
+  atan2,
+  pow
 }
