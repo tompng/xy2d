@@ -76,7 +76,8 @@ export class Solver {
         } else if (pw !== 0) {
           this.pointResults.push(xi, yi, px / pw, py / pw)
         } else {
-          this.areaPointResult.push(xi, yi, a > 0 ? 2 : 1)
+          const v = fValue(x + (xi + 0.5) * s, y + (yi + 0.5) * s)
+          this.areaPointResult.push(xi, yi, isNaN(v) ? 3 : v > 0 ? 2 : v < 0 ? 1 : 0)
         }
       })
       ;[prevFs, prevFs2] = [prevFs2, prevFs]
