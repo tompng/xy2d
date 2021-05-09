@@ -91,52 +91,67 @@ function buildRootAST(group: TokenParenGroup): [ASTNode, '=' | '>' | '>=' | null
   return [ast, cmp.includes('=') ? '>=' : '>']
 }
 type ArgGroup = ASTNode[]
-const oplist = [new Set(['+', '-']), new Set(['*', '/', ' ']), new Set('^')]
-function buildFuncMult(group: TokenParenGroup): ASTNode {
-  const astOrArgOrOps = group.map(g => typeof g === 'object' ? buildAST(g) : g)
-  let index = 0
-  function takeWhile<T = ASTNode | ArgGroup | string>(cond: (item: ASTNode | ArgGroup | string) => boolean) {
-    const items: T[] = []
-    while (index < astOrArgOrOps.length && cond(astOrArgOrOps[index])) {
-      items.push(astOrArgOrOps[index] as unknown as T)
-      index++
-    }
-    return items
-  }
+const oplist = [new Set(['+', '-']), new Set(['*', '/', ' '])]
+function buildFuncMultPow(group: TokenParenGroup): ASTNode {
+  type Args = { type: 'args'; value: ArgGroup }
+  type Paren = { type: 'paren', value: ASTNode }
+  const values: (string | number | Args | Paren)[] = group.map(g => {
+    if (typeof g !== 'object') return g
+    const astOrArg = buildAST(g)
+    return Array.isArray(astOrArg) ? { type: 'args' as const, value: astOrArg } : { type: 'paren' as const, value: astOrArg }
+  })
   const mults: ASTNode[] = []
-  while (index < astOrArgOrOps.length) {
-    const funcnames = takeWhile<string>(item => typeof item === 'string' && functionNames.has(item))
-    if (funcnames.length !== 0) {
-      const numvars = takeWhile<string | number>(item => typeof item === 'string' || typeof item === 'number')
-      let args: ASTNode[]
-      if (numvars.length === 0) {
-        const arg = astOrArgOrOps[index]
-        index++
-        if (!arg) throw `No Function Arguments: ${funcnames[funcnames.length - 1]}`
-        if (Array.isArray(arg)) args = arg
-        else args = [arg]
+  let concatable = false
+  let pow: ASTNode | undefined
+  for (let index = values.length - 1; index >= 0; index--) {
+    const v = values[index]
+    console.log(v)
+    if (typeof v === 'object') {
+      const prev = index > 0 && values[index - 1]
+      const isPrevFunc = typeof prev === 'string' && functionNames.has(prev)
+      if (v.type === 'args') {
+        if (!isPrevFunc) throw 'Function Required'
+        mults.unshift({ op: prev, a: v.value[0], b: v.value[1] } as ASTNode)
       } else {
-        const astnumvars: ASTNode[] = numvars
-        args = [astnumvars.reduce((a, b) => ({ op: '*', a, b }))]
+        if (pow && !isPrevFunc) {
+          mults.unshift({ op: '^', a: v.value, b: pow })
+          pow = undefined
+        } else {
+          mults.unshift(v.value)
+        }
       }
-      for (let i = funcnames.length - 1; i >= 0; i--) {
-        const op = funcnames[i]
-        if (args.length == 2) args = [{ op, a: args[0], b: args[1] } as ASTNode]
-        else args = [{ op, a: args[0] } as ASTNode]
+      concatable = false
+    } else if (v === '^') {
+      if (!mults[0] || pow) throw `Error after ^`
+      pow = mults.shift()
+      concatable = false
+    } else if (typeof v === 'string' && functionNames.has(v)) {
+      if (!mults[0]) throw `Function Arg Required: ${v}`
+      if (pow) {
+        mults[0] = { op: '^', a: { op: v, a: mults[0] } as ASTNode, b: pow }
+        pow = undefined
+      } else {
+        mults[0] = { op: v, a: mults[0] } as ASTNode
       }
-      mults.push(args[0])
+      concatable = false
     } else {
-      const item = astOrArgOrOps[index]
-      if (Array.isArray(item)) throw `Unexpected Comma Group`
-      mults.push(item)
-      index++
+      if (pow) {
+        mults.unshift({ op: '^', a: v, b: pow })
+        pow = undefined
+      } else if (concatable) {
+        mults[0] = { op: '*', a: v, b: mults[0] as ASTNode }
+      } else {
+        mults.unshift(v)
+      }
+      concatable = true
     }
   }
+  if (pow) throw 'Error at ^'
   if (mults.length === 0) throw `Unexpected Empty Block`
   return mults.reduce((a, b) => ({ op: '*', a, b }))
 }
 function splitByOp(group: TokenParenGroup, index: number): ASTNode {
-  if (index === oplist.length) return buildFuncMult(group)
+  if (index === oplist.length) return buildFuncMultPow(group)
   const ops = oplist[index]
   let current: TokenParenGroup = []
   const groups: TokenParenGroup[] = [current]
