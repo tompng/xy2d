@@ -4,8 +4,7 @@ import { parse } from './parser'
 ;(window as any).parse = parse
 
 // FIXME
-// xy^2>1 # (xy)^2 x(y^2)
-// sin(x)cos(y) parse error
+// y-x^x NaN
 
 function sleep(ms: number) {
   return new Promise<void>(resolve => setTimeout(resolve, ms))
@@ -32,7 +31,12 @@ function calc(exp: string) {
   const ar = solver.areaResults
   const pr = solver.pointResults
   const apr = solver.areaPointResult
-  const colors = mode === '>' ? [null, null, '#aaf', null] : mode === '>=' ? ['#aaa', null, '#aaf', null] : ['#aaa', '#aaf', '#faa', '#eee']
+  const colors = {
+    '=': ['#aaa', null, null, null],
+    '>': [null, null, '#aaf', null],
+    '>=': ['#aaa', null, '#aaf', null],
+    'all': ['#aaa', '#aaf', '#faa', '#eee']
+  }[mode ?? 'all']
   if (mode !== '=') {
     for (let i = 0; i < ar.length;) {
       const x = ar[i++]
