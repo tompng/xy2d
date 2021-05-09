@@ -1,12 +1,14 @@
 import { astToFunction, astToRangeFunction } from './ast'
-import { Solver as SimpleSolver } from './solver'
 import { parse } from './parser'
+import { Panel } from './view'
 ;(window as any).parse = parse
 
 function sleep(ms: number) {
   return new Promise<void>(resolve => setTimeout(resolve, ms))
 }
 let canvas = document.createElement('canvas')
+
+let panel: Panel | undefined
 function calc(exp: string) {
   const [ast, mode] = parse(exp)
   const compareOption = {
@@ -15,67 +17,27 @@ function calc(exp: string) {
   }
   const frange = astToRangeFunction(ast, compareOption)
   const fvalue = astToFunction(ast)
-  console.log(fvalue)
-  const size = 512
-  canvas.width = size
-  canvas.height = size
-  const ctx = canvas.getContext('2d')!
-  ctx.translate(0, canvas.height)
-  ctx.scale(1, -1)
-  ctx.lineWidth = 4 / 512
-  ctx.strokeStyle = 'black'
-  const solver = new SimpleSolver(frange, fvalue, { x: -1.2, y: -1.2, size: 2.4 }, size, () => {})
-  const t = performance.now()
-  solver.calculate()
-  console.log(performance.now() - t)
-  const ar = solver.areaResults
-  const pr = solver.pointResults
-  const apr = solver.areaPointResult
-  const colors = {
-    '=': ['#aaa', null, null, null],
-    '>': [null, null, '#aaf', null],
-    '>=': ['#aaa', null, '#aaf', null],
-    'all': ['#aaa', '#aaf', '#faa', '#eee']
-  }[mode ?? 'all']
-  if (mode !== '=') {
-    for (let i = 0; i < ar.length;) {
-      const x = ar[i++]
-      const y = ar[i++]
-      const s = ar[i++]
-      const result = ar[i++]
-      const color = colors[result]
-      if (color) {
-        ctx.fillStyle = color
-        ctx.globalAlpha = 0.5+0.5*Math.random()
-        ctx.fillRect(size*x, size*y, size*s, size*s)
-        ctx.globalAlpha = 1
-      }
-    }
+  const resolution = 512
+  const colors =
+    mode === '=' ? { zero: '#aaa', line: 'black' } :
+    mode === '>' ? { pos: '#aaf', line: '#444' } :
+    mode === '>=' ? { zero: '#aaa', pos: '#aaf', line: 'black' } :
+    { zero: '#aaa', neg: '#aaf', pos: '#faa', line: 'black' }
+  const range = { x: -1.2, y: -1.2, size: 2.4 }
+  if (!panel) {
+    const newPanel = new Panel(fvalue, frange, range, resolution, colors)
+    document.body.appendChild(newPanel.backgroundCanvas)
+    document.body.appendChild(newPanel.lineCanvas)
+    ;[newPanel.backgroundCanvas, newPanel.lineCanvas].forEach((canvas, i) => {
+      canvas.style.position = 'absolute'
+      canvas.style.left = `${40 - newPanel.offset * i}px`
+      canvas.style.top = `${40 - newPanel.offset * i}px`
+    })
+    panel = newPanel
+  } else {
+    panel.reset(fvalue, frange, range, resolution, colors)
   }
-  for (let i = 0; i < apr.length;) {
-    const x = apr[i++]
-    const y = apr[i++]
-    const c = apr[i++]
-    const color = colors[c]
-    let len = 1
-    while(apr[i] === x + len && apr[i + 1] === y && apr[i + 2] === c) {
-      i += 3
-      len += 1
-    }
-    if (color) {
-      ctx.fillStyle = color
-      ctx.fillRect(x, y, len, 1)
-    }
-  }
-  ctx.fillStyle = mode !== '>' ? 'black' : '#444'
-  for (let i = 0; i < pr.length; i += 4) {
-    const x = pr[i + 2]
-    const y = pr[i + 3]
-    ctx.beginPath()
-    ctx.globalAlpha = 0.8
-    ctx.arc(x, y, 1, 0, 2 * Math.PI)
-    ctx.fill()
-  }
+  panel.render()
 }
 
 onload = () => {

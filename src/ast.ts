@@ -1,5 +1,7 @@
 import { expanders, results, GAPMARK, NANMARK, Expander, MinMaxVarName, NameGenerator, RangeResult } from "./expander"
 
+export type RangeFunction = (xmin: number, xmax: number, ymin: number, ymax: number) => RangeResult
+export type ValueFunction = (x: number, y: number) => number
 type UnaryOp =
   | '-@' | 'log' | 'exp'
   | 'sin' | 'cos' | 'tan'
