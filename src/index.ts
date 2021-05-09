@@ -4,19 +4,9 @@ import { parse } from './parser'
 ;(window as any).parse = parse
 
 // FIXME
-// y+sqrt(x+y) # NaN check bug
 // x-x # render too slow
 // xy^2>1 # (xy)^2 x(y^2)
 // xy+x-x # white area
-
-const circleAST = ast.add(ast.add(ast.mult('x', 'x'), ast.mult('y', 'y')), -1)
-const gAST = ast.mult(circleAST, ast.add(ast.add('x', ast.mult('y', 'x')), 1))
-const divxyAST = ast.div(1, ast.add('x', 'y'))
-const fAST = ast.mult(gAST, divxyAST)
-const frange = astToRangeFunction(fAST)
-const fvalue = astToFunction(fAST)
-;(window as any).frange = frange
-;(window as any).fvalue = fvalue
 
 function sleep(ms: number) {
   return new Promise<void>(resolve => setTimeout(resolve, ms))
@@ -24,7 +14,11 @@ function sleep(ms: number) {
 let canvas = document.createElement('canvas')
 function calc(exp: string) {
   const [ast, mode] = parse(exp)
-  const frange = astToRangeFunction(ast)
+  const compareOption = {
+    pos: mode !== '=',
+    neg: mode === null
+  }
+  const frange = astToRangeFunction(ast, compareOption)
   const fvalue = astToFunction(ast)
   const size = 512
   canvas.width = size

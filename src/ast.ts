@@ -1,6 +1,5 @@
 import { expanders, results, GAPMARK, NANMARK, Expander, MinMaxVarName, NameGenerator, RangeResult } from "./expander"
 
-
 type UnaryOp =
   | '-@' | 'log' | 'exp'
   | 'sin' | 'cos' | 'tan'
@@ -33,16 +32,20 @@ export const ast = {
   log: (a: ASTNode) => ({ op: 'log', a } as ASTNode),
 }
 
+const mathConstants = { e: Math.E, pi: Math.PI }
+
 export function compactAST(ast: ASTNode, constants: Record<string, number>): ASTNode {
+  console.log(constants)
   if (typeof ast === 'number') return ast
   if (typeof ast === 'string') {
     const value = constants[ast]
+    console.log(ast, value)
     return typeof value === 'number' ? value : ast
   }
   if ('b' in ast) {
-    const { a, b } = ast
-    if (typeof a !== 'number') return ast
-    if (typeof b !== 'number') return ast
+    const a = compactAST(ast.a, constants)
+    const b = compactAST(ast.b, constants)
+    if (typeof a !== 'number' || typeof b !== 'number') return { ...ast, a, b }
     switch (ast.op) {
       case '+': return a + b
       case '-': return a - b
@@ -53,8 +56,8 @@ export function compactAST(ast: ASTNode, constants: Record<string, number>): AST
       case 'atan2': return Math.atan2(a, b)
     }
   } else {
-    const { a } = ast
-    if (typeof a !== 'number') return ast
+    const a = compactAST(ast.a, constants)
+    if (typeof a !== 'number') return { ...ast, a }
     switch (ast.op) {
       case '-@': return -a
       case 'exp': return Math.exp(a)
@@ -122,7 +125,7 @@ export function astToRangeCode(ast: ASTNode, args: Set<string>): string | number
   }
 }
 
-export function astToFunction(ast: ASTNode, constants: Record<string, number> = {}): (x: number, y: number) => number {
+export function astToFunction(ast: ASTNode, constants: Record<string, number> = mathConstants): (x: number, y: number) => number {
   const args = new Set(['x', 'y'])
   return eval(`(x, y) => ${astToCode(compactAST(ast, constants), args)}`)
 }
@@ -142,7 +145,7 @@ function astToRangeVarNameCode(ast: ASTNode, args: Record<string, MinMaxVarName>
   return [c, acode + ';' + bcode + ';' + ccode]
 }
 
-export function astToRangeFunction(ast: ASTNode, constants: Record<string, number> = {}): (xmin: number, xmax: number, ymin: number, ymax: number) => RangeResult {
+export function astToRangeFunction(ast: ASTNode, option: { pos?: boolean; neg?: boolean }, constants: Record<string, number> = mathConstants): (xmin: number, xmax: number, ymin: number, ymax: number) => RangeResult {
   let nameGeneratorIndex = 9
   const nameGenerator = () => {
     let n = nameGeneratorIndex++
@@ -176,7 +179,15 @@ export function astToRangeFunction(ast: ASTNode, constants: Record<string, numbe
   const markEmbeddedCode = code.replaceAll(GAPMARK, '_gap=true;').replaceAll(NANMARK, '_nan=true;')
   const gapRetPart = gapTest ? `_gap?${results.HASGAP}:` : ''
   const nanRetPart = nanTest ? `_nan?${results.HASNAN}:` : ''
-  const bothPart = gapRetPart + nanRetPart + results.BOTH
-  const returnPart = `return ${minvar}>${epsilon}?${results.POS}:${maxvar}<${-epsilon}?${results.NEG}:${bothPart}`
+  let returnPart: string
+  if (option.pos && option.neg) {
+    returnPart = `return ${nanRetPart}${minvar}>${epsilon}?${results.POS}:${maxvar}<${-epsilon}?${results.NEG}:${gapRetPart}${results.BOTH}`
+  } else if (option.pos) {
+    returnPart = `return ${minvar}>${epsilon}?${nanRetPart}${results.POS}:${maxvar}<${-epsilon}?${results.NEG}:${gapRetPart}${results.BOTH}`
+  } else if (option.neg) {
+    returnPart = `return ${minvar}>${epsilon}?${results.POS}:${maxvar}<${-epsilon}?${nanRetPart}${results.NEG}:${gapRetPart}${results.BOTH}`
+  } else {
+    returnPart = `return ${minvar}>${epsilon}?${results.POS}:${maxvar}<${-epsilon}?${results.NEG}:${gapRetPart}${results.BOTH}`
+  }
   return eval(`${argsPart}=>{${preparePart}${markEmbeddedCode};${returnPart}}`)
 }
