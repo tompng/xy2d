@@ -20,6 +20,8 @@ function calc(exp: string) {
   canvas.width = size
   canvas.height = size
   const ctx = canvas.getContext('2d')!
+  ctx.translate(0, canvas.height)
+  ctx.scale(1, -1)
   ctx.lineWidth = 4 / 512
   ctx.strokeStyle = 'black'
   const solver = new SimpleSolver(frange, fvalue, { x: -1.2, y: -1.2, size: 2.4 }, size, () => {})
