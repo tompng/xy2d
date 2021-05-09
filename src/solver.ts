@@ -8,6 +8,7 @@ export class Solver {
   aborted = false
   areaResults: number[] = []
   pointResults: number[] = []
+  areaPointResult: number[] = []
   constructor(
     public fRange: FRange,
     public fValue: FValue,
@@ -71,6 +72,7 @@ export class Solver {
           pw ++
         }
         if (pw !== 0) this.pointResults.push(xi, yi, px / pw, py / pw)
+        else this.areaPointResult.push(xi, yi, a > 0 ? 2 : 1)
       })
       ;[prevFs, prevFs2] = [prevFs2, prevFs]
       yj = y + 1

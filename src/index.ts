@@ -32,6 +32,7 @@ function calc(exp: string) {
   console.log(performance.now() - t)
   const ar = solver.areaResults
   const pr = solver.pointResults
+  const apr = solver.areaPointResult
   if (mode !== '=') {
     const colors = mode === '>' || mode === '>=' ? [null, null, '#aaf', null] : ['#aaa', '#aaf', '#faa', '#eee']
     for (let i = 0; i < ar.length;) {
@@ -46,6 +47,18 @@ function calc(exp: string) {
         ctx.fillRect(size*x, size*y, size*s, size*s)
         ctx.globalAlpha = 1
       }
+    }
+    for (let i = 0; i < apr.length;) {
+      const x = apr[i++]
+      const y = apr[i++]
+      const color = colors[apr[i++]]
+      if (color) {
+        ctx.fillStyle = color
+        ctx.globalAlpha = 0.5+0.5*Math.random()
+        ctx.fillRect(x, y, 1, 1)
+        ctx.globalAlpha = 1
+      }
+
     }
   }
   ctx.fillStyle = 'black'

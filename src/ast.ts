@@ -35,11 +35,9 @@ export const ast = {
 const mathConstants = { e: Math.E, pi: Math.PI }
 
 export function compactAST(ast: ASTNode, constants: Record<string, number>): ASTNode {
-  console.log(constants)
   if (typeof ast === 'number') return ast
   if (typeof ast === 'string') {
     const value = constants[ast]
-    console.log(ast, value)
     return typeof value === 'number' ? value : ast
   }
   if ('b' in ast) {
