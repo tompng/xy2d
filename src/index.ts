@@ -1,4 +1,4 @@
-import { ast, astToFunction, astToRangeFunction } from './ast'
+import { astToFunction, astToRangeFunction } from './ast'
 import { Solver as SimpleSolver } from './solver'
 import { parse } from './parser'
 ;(window as any).parse = parse

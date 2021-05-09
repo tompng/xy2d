@@ -16,22 +16,6 @@ export type ASTNode = string | number | {
   b: ASTNode
 }
 
-export const ast = {
-  add: (a: ASTNode, b: ASTNode) => ({ op: '+', a, b } as ASTNode),
-  sub: (a: ASTNode, b: ASTNode) => ({ op: '-', a, b } as ASTNode),
-  mult: (a: ASTNode, b: ASTNode) => ({ op: '*', a, b } as ASTNode),
-  div: (a: ASTNode, b: ASTNode) => ({ op: '/', a, b } as ASTNode),
-  pow: (a: ASTNode, b: ASTNode) => ({ op: '^', a, b } as ASTNode),
-  minus: (a: ASTNode) => ({ op: '-@', a } as ASTNode),
-  sin: (a: ASTNode) => ({ op: 'sin', a } as ASTNode),
-  cos: (a: ASTNode) => ({ op: 'cos', a } as ASTNode),
-  f1: (op: UnaryOp, a: ASTNode) => ({ op: op, a } as ASTNode),
-  f2: (op: BinaryOp, a: ASTNode, b: ASTNode) => ({ op: op, a, b } as ASTNode),
-  sqrt: (a: ASTNode) => ({ op: 'sqrt', a } as ASTNode),
-  exp: (a: ASTNode) => ({ op: 'exp', a } as ASTNode),
-  log: (a: ASTNode) => ({ op: 'log', a } as ASTNode),
-}
-
 const mathConstants = { e: Math.E, pi: Math.PI }
 
 export function compactAST(ast: ASTNode, constants: Record<string, number>): ASTNode {
