@@ -4,9 +4,8 @@ import { parse } from './parser'
 ;(window as any).parse = parse
 
 // FIXME
-// x-x # render too slow
 // xy^2>1 # (xy)^2 x(y^2)
-// xy+x-x # white area
+// sin(x)cos(y) parse error
 
 function sleep(ms: number) {
   return new Promise<void>(resolve => setTimeout(resolve, ms))
@@ -33,8 +32,8 @@ function calc(exp: string) {
   const ar = solver.areaResults
   const pr = solver.pointResults
   const apr = solver.areaPointResult
+  const colors = mode === '>' ? [null, null, '#aaf', null] : mode === '>=' ? ['#aaa', null, '#aaf', null] : ['#aaa', '#aaf', '#faa', '#eee']
   if (mode !== '=') {
-    const colors = mode === '>' || mode === '>=' ? [null, null, '#aaf', null] : ['#aaa', '#aaf', '#faa', '#eee']
     for (let i = 0; i < ar.length;) {
       const x = ar[i++]
       const y = ar[i++]
@@ -48,20 +47,19 @@ function calc(exp: string) {
         ctx.globalAlpha = 1
       }
     }
-    for (let i = 0; i < apr.length;) {
-      const x = apr[i++]
-      const y = apr[i++]
-      const color = colors[apr[i++]]
-      if (color) {
-        ctx.fillStyle = color
-        ctx.globalAlpha = 0.5+0.5*Math.random()
-        ctx.fillRect(x, y, 1, 1)
-        ctx.globalAlpha = 1
-      }
-
+  }
+  for (let i = 0; i < apr.length;) {
+    const x = apr[i++]
+    const y = apr[i++]
+    const color = colors[apr[i++]]
+    if (color) {
+      ctx.fillStyle = color
+      ctx.globalAlpha = 0.5+0.5*Math.random()
+      ctx.fillRect(x, y, 1, 1)
+      ctx.globalAlpha = 1
     }
   }
-  ctx.fillStyle = 'black'
+  ctx.fillStyle = mode !== '>' ? 'black' : '#444'
   for (let i = 0; i < pr.length; i += 4) {
     const x = pr[i + 2]
     const y = pr[i + 3]

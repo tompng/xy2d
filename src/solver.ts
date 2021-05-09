@@ -71,8 +71,13 @@ export class Solver {
           py += yi + 1
           pw ++
         }
-        if (pw !== 0) this.pointResults.push(xi, yi, px / pw, py / pw)
-        else this.areaPointResult.push(xi, yi, a > 0 ? 2 : 1)
+        if (-1e-15 < Math.min(a,b,c,d) && Math.max(a, b, c, d) < 1e-15) {
+          this.areaPointResult.push(xi, yi, 0)
+        } else if (pw !== 0) {
+          this.pointResults.push(xi, yi, px / pw, py / pw)
+        } else {
+          this.areaPointResult.push(xi, yi, a > 0 ? 2 : 1)
+        }
       })
       ;[prevFs, prevFs2] = [prevFs2, prevFs]
       yj = y + 1
