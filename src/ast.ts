@@ -5,7 +5,7 @@ type UnaryOp =
   | 'sin' | 'cos' | 'tan'
   | 'sinh' | 'cosh' | 'tanh'
   | 'asin' | 'acos' | 'atan'
-  | 'asinh' | 'acosh' | 'atanh' | 'sqrt'
+  | 'asinh' | 'acosh' | 'atanh' | 'sqrt' | 'abs'
 type BinaryOp = '+' | '-' | '*' | '/' | '^' | 'hypot' | 'atan2' | 'pow'
 export type ASTNode = string | number | {
   op: UnaryOp
@@ -58,6 +58,7 @@ export function compactAST(ast: ASTNode, constants: Record<string, number>): AST
       case 'asinh': return Math.asinh(a)
       case 'acosh': return Math.acosh(a)
       case 'atanh': return Math.atanh(a)
+      case 'abs': return Math.abs(a)
     }
   }
 }

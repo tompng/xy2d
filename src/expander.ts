@@ -183,17 +183,6 @@ function createConvexExpander(func: (n: number) => number, funcName: string, typ
   }
 }
 
-function createMonoIncExpander(func: (v: number) => number, funcName: string): Expander {
-  return (a, _b, namer) => {
-    if (typeof a === 'number') return [func(a), '']
-    const [min, max] = a
-    const minvar = namer()
-    const maxvar = namer()
-    const code = `const ${minvar}=${func}(${min}),${maxvar}=${func}(${max})`
-    return [[minvar, maxvar], code]
-  }
-}
-
 function createMonotonicExpander(func: (v: number) => number, funcName: string, type: 'inc' | 'dec', range: { min?: [number, number]; max?: [number, number] } = {}): Expander {
   const rangeMin = range.min
   const rangeMax = range.max
@@ -331,6 +320,20 @@ const atan2: Expander = (y, x, namer) => {
   return [[minvar, maxvar], code]
 }
 
+const abs: Expander = (a, _b, namer) => {
+  if (typeof a === 'number') return [Math.abs(a), '']
+  const [min, max] = a
+  const minvar = namer()
+  const maxvar = namer()
+  const code = [
+    `let ${minvar},${maxvar};`,
+    `if(0<${min}){${minvar}=${min};${maxvar}=${max}}`,
+    `else if(${max}<0){${minvar}=-${max};${maxvar}=-${min}}`,
+    `else{${minvar}=0;${maxvar}=Math.max(-${min},${max})}`
+  ].join('')
+  return [[minvar, maxvar], code]
+}
+
 export const expanders = {
   '+': add,
   '-': sub,
@@ -355,5 +358,6 @@ export const expanders = {
   atanh,
   hypot,
   atan2,
-  pow
+  pow,
+  abs
 }

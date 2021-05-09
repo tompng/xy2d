@@ -1,6 +1,6 @@
 import type { ASTNode } from './ast'
 // TODO: pow, abs min, max, etc
-const functionNames = new Set(['log', 'exp', 'sqrt', 'pow', 'hypot', 'sin', 'cos', 'tan', 'asin', 'acos', 'atan', 'sinh', 'cosh', 'tanh', 'asinh', 'acosh', 'atanh', 'atan2', '√'])
+const functionNames = new Set(['log', 'exp', 'sqrt', 'pow', 'hypot', 'sin', 'cos', 'tan', 'asin', 'acos', 'atan', 'sinh', 'cosh', 'tanh', 'asinh', 'acosh', 'atanh', 'atan2', '√', 'abs'])
 const constantNames = new Set(['e', 'pi', 'π', 'PI', 'E'])
 const varNames = new Set(['x', 'y'])
 const comparers = new Set(['<', '=', '>', '<=', '>='])
