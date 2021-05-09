@@ -155,8 +155,9 @@ const pow: Expander = (a, b, namer) => {
   const v4 = namer()
   const code = [
     `let ${minvar},${maxvar};`,
-    `if(${amax}<0){${minvar}=${maxvar}=0}`,
+    `if(${amax}<0){return ${NAN}}`,
     `else{`,
+    `if(${amin}<0){${NANMARK}};`,
     `const ${amin2}=${amin}<0?0:${amin};`,
     `const ${v1}=${amin2}**${bmin},${v2}=${amin2}**${bmax},${v3}=${amax}**${bmin},${v4}=${amax}**${bmax};`,
     `${minvar}=Math.min(${v1},${v2},${v3},${v4});`,

@@ -3,9 +3,6 @@ import { Solver as SimpleSolver } from './solver'
 import { parse } from './parser'
 ;(window as any).parse = parse
 
-// FIXME
-// y-x^x NaN
-
 function sleep(ms: number) {
   return new Promise<void>(resolve => setTimeout(resolve, ms))
 }
