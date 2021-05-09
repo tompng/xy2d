@@ -1,5 +1,4 @@
 import type { ASTNode } from './ast'
-
 // TODO: pow, abs min, max, etc
 const functionNames = new Set(['log', 'exp', 'sqrt', 'hypot', 'sin', 'cos', 'tan', 'asin', 'acos', 'atan', 'sinh', 'cosh', 'tanh', 'asinh', 'acosh', 'atanh', 'atan2', '√'])
 const constantNames = new Set(['e', 'pi', 'π', 'PI', 'E'])
@@ -28,9 +27,9 @@ function parseParen(input: string): ParenGroup {
   if (stack.length !== 1) throw 'Paren Mismatch'
   return current
 }
-const alias: Record<string, string | undefined> = { '**': '^', '√': 'sqrt', 'π': 'pi', 'PI': 'pi', 'E': 'e' }
+const opAlias: Record<string, string | undefined> = { '**': '^', '√': 'sqrt', 'π': 'pi', 'PI': 'pi', 'E': 'e' }
 function convertAlias(s: string) {
-  return alias[s] || s
+  return opAlias[s] || s
 }
 
 function matchToken(s: string, i: number): [number | string, number] | null{
@@ -105,7 +104,6 @@ function buildFuncMultPow(group: TokenParenGroup): ASTNode {
   let pow: ASTNode | undefined
   for (let index = values.length - 1; index >= 0; index--) {
     const v = values[index]
-    console.log(v)
     if (typeof v === 'object') {
       const prev = index > 0 && values[index - 1]
       const isPrevFunc = typeof prev === 'string' && functionNames.has(prev)

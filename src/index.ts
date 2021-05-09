@@ -55,12 +55,10 @@ function calc(exp: string) {
     const c = apr[i++]
     const color = colors[c]
     let len = 1
-    ;(window as any).apr = apr
     while(apr[i] === x + len && apr[i + 1] === y && apr[i + 2] === c) {
       i += 3
       len += 1
     }
-    if (len != 1) console.log(len)
     if (color) {
       ctx.fillStyle = color
       ctx.fillRect(x, y, len, 1)
