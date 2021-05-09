@@ -13,8 +13,7 @@ export class Solver {
     public fRange: FRange,
     public fValue: FValue,
     public range: { x: number; y: number; size: number },
-    public resolution: number,
-    public onUpdate: (s: Solver) => void
+    public resolution: number
   ) {}
   calculate() {
     const minRanges = this.calculateRange(1)
@@ -30,19 +29,19 @@ export class Solver {
     const { x, y, size } = this.range
     const s = size / this.resolution
     const { fValue } = this
-    let prevFs: (number)[] = new Array(this.resolution + 1).fill(0)
-    let prevFs2: (number)[] = new Array(this.resolution + 1).fill(0)
-    let yj = 0
+    let prevFs: number[] = new Array(this.resolution + 1).fill(0)
+    let prevFs2: number[] = new Array(this.resolution + 1).fill(0)
+    let yj = -1
     baskets.forEach((xs, yi) => {
       if (!xs) return
       if (yj !== y) {
-        let xj = 0
+        let xj = -1
         xs.forEach(xi => {
           if (xj !== xi) prevFs[xi] = fValue(x + xi * s, y + yi * s)
           prevFs[xj = xi + 1] = fValue(x + (xi + 1) * s, y + yi * s)
         })
       }
-      let xj = 0
+      let xj = -1
       xs.forEach(xi => {
         const a = prevFs[xi]
         const b = prevFs[xi + 1]
