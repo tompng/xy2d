@@ -117,9 +117,11 @@ export class View {
   height = 800
   viewSize = 4
   panelResolution = 128
+  renderedPanelSize = 0
   panels = new Map<string, { ix: number; iy: number; prior: boolean; panel: Panel }>()
   dom = document.createElement('div')
   pool: Panel[] = []
+  locked = false
   constructor(
     public fvalue: ValueFunction,
     public frange: RangeFunction,
@@ -131,12 +133,19 @@ export class View {
       background: white;
     `
   }
+  lock() {
+    this.locked = true
+    if (this.timer) clearTimeout(this.timer)
+    this.timer = null
+  }
   update(timeout = 30) {
+    if (this.locked) return
     this.dom.style.width = `${this.width}px`
     this.dom.style.height = `${this.height}px`
     const { center, width, height, viewSize, panelResolution } = this
     const viewResolution = Math.min(width, height)
     const panelSize = panelResolution / viewResolution * viewSize
+    this.renderedPanelSize = panelSize
     const xmin = center.x - viewSize * width / viewResolution / 2
     const xmax = center.x + viewSize * width / viewResolution / 2
     const ymin = center.y - viewSize * height / viewResolution / 2
@@ -170,16 +179,29 @@ export class View {
         this.panels.set(key, { ix, iy, panel, prior: true })
       }
     }
+    this.updatePosition()
+    while (this.pool.length > 64) this.pool.pop()?.release()
+    this.render(timeout)
+  }
+  updatePosition() {
+    const { width, height, center, panelResolution, viewSize } = this
+    const viewResolution = Math.min(width, height)
+    const renderedPanelSize = this.renderedPanelSize
+    const panelSize = panelResolution / viewResolution * viewSize
+    const canvasSize = renderedPanelSize * panelResolution / panelSize
     this.panels.forEach(({ ix, iy, panel }) => {
-      const x = width / 2 + (ix * panelSize - center.x) * panelResolution / panelSize
-      const y = height / 2 - ((iy + 1)* panelSize - center.y) * panelResolution / panelSize
+      const lineCanvasSize = renderedPanelSize * (panelResolution + panel.offset * 2) / panelSize
+      const x = width / 2 + (ix * renderedPanelSize - center.x) * panelResolution / panelSize
+      const y = height / 2 - ((iy + 1)* renderedPanelSize - center.y) * panelResolution / panelSize
       panel.backgroundCanvas.style.left = `${x}px`
       panel.backgroundCanvas.style.top = `${y}px`
       panel.lineCanvas.style.left = `${x - panel.offset}px`
       panel.lineCanvas.style.top = `${y - panel.offset}px`
+      panel.backgroundCanvas.style.width = `${canvasSize}px`
+      panel.backgroundCanvas.style.height = `${canvasSize}px`
+      panel.lineCanvas.style.width = `${lineCanvasSize}px`
+      panel.lineCanvas.style.height = `${lineCanvasSize}px`
     })
-    while (this.pool.length > 64) this.pool.pop()?.release()
-    this.render(timeout)
   }
   timer: number | null = null
   render(timeout = 30) {
