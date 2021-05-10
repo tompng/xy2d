@@ -212,11 +212,11 @@ export class View {
     this.panels.forEach(({ panel }) => {
       panel.backgroundCanvas.remove()
       panel.lineCanvas.remove()
-      this.pool.push(panel)
+      panel.release()
     })
     this.panels.clear()
   }
-  release() {
+  reset() {
     this.pool.forEach(p => p.release())
     if (this.timer) clearTimeout(this.timer)
     for (const [, { panel, }] of this.panels) {

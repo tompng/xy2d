@@ -22,14 +22,15 @@ function calc(exp: string) {
     mode === '>=' ? { zero: '#aaa', pos: '#aaf', line: 'black' } :
     { zero: '#aaa', neg: '#aaf', pos: '#faa', line: 'black' }
   if (prevView) {
-    prevView.release()
-    prevView.dom.remove()
+    prevView.fvalue = fvalue
+    prevView.frange = frange
+    prevView.colors = colors
+    prevView.reset()
   }
-  const view = new View(fvalue, frange, colors)
+  const view = prevView = prevView || new View(fvalue, frange, colors)
   document.body.appendChild(view.dom)
   view.update(200)
   view.dom.style.overflow = 'hidden'
-  prevView = view
   gesture(view.dom, ({ dx, dy, zoom }) => {
     const size = Math.min(view.width, view.height)
     view.center.x -= view.viewSize * dx / size
