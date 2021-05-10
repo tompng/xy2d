@@ -208,6 +208,14 @@ export class View {
     panel.resetRange(range)
     return panel
   }
+  clear() {
+    this.panels.forEach(({ panel }) => {
+      panel.backgroundCanvas.remove()
+      panel.lineCanvas.remove()
+      this.pool.push(panel)
+    })
+    this.panels.clear()
+  }
   release() {
     this.pool.forEach(p => p.release())
     if (this.timer) clearTimeout(this.timer)

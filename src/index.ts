@@ -1,13 +1,13 @@
 import { astToFunction, astToRangeFunction } from './ast'
 import { parse } from './parser'
-import { Panel, View } from './view'
+import { View } from './view'
 ;(window as any).parse = parse
 
 function sleep(ms: number) {
   return new Promise<void>(resolve => setTimeout(resolve, ms))
 }
 
-let view: View | undefined
+let prevView: View | undefined
 function calc(exp: string) {
   const [ast, mode] = parse(exp)
   const compareOption = {
@@ -21,48 +21,84 @@ function calc(exp: string) {
     mode === '>' ? { pos: '#aaf', line: '#444' } :
     mode === '>=' ? { zero: '#aaa', pos: '#aaf', line: 'black' } :
     { zero: '#aaa', neg: '#aaf', pos: '#faa', line: 'black' }
-  if (view) {
-    view.release()
-    view.dom.remove()
+  if (prevView) {
+    prevView.release()
+    prevView.dom.remove()
   }
-  const newView = new View(fvalue, frange, colors)
-  document.body.appendChild(newView.dom)
-  newView.update(200)
-  newView.dom.style.overflow = 'hidden'
+  const view = new View(fvalue, frange, colors)
+  document.body.appendChild(view.dom)
+  view.update(200)
+  view.dom.style.overflow = 'hidden'
+  prevView = view
+  gesture(view.dom, ({ dx, dy, zoom }) => {
+    const size = Math.min(view.width, view.height)
+    view.center.x -= view.viewSize * dx / size
+    view.center.y += view.viewSize * dy / size
 
-  gesture(newView.dom, ({ dx, dy }) => {
-    const size = Math.min(newView.width, newView.height)
-    newView.center.x -= newView.viewSize * dx / size
-    newView.center.y += newView.viewSize * dy / size
-    newView.update()
+    const tx = view.center.x + (zoom.x - 0.5) * view.width / size * view.viewSize
+    const ty = view.center.y + (0.5 - zoom.y) * view.height / size * view.viewSize
+    const dtx = tx - view.center.x
+    const dty = ty - view.center.y
+    view.center.x += dtx
+    view.center.y += dty
+    view.viewSize /= zoom.v
+    view.center.x -= dtx / zoom.v
+    view.center.y -= dty / zoom.v
+    if (zoom.v !== 1) view.clear()
+    view.update()
   })
-  view = newView
-  ;(window as any).view = newView
+  ;(window as any).view = view
 }
 
-function gesture(dom: HTMLElement, cb: (e: { dx: number; dy: number }) => void) {
+function gesture(dom: HTMLElement, cb: (e: { dx: number; dy: number; zoom: { x: number; y: number; v: number } }) => void) {
   dom.addEventListener('wheel', e => {
-    cb({ dx: -e.deltaX, dy: -e.deltaY })
     e.preventDefault()
+    if (e.ctrlKey) {
+      const v = Math.pow(2, -(e.deltaY + e.deltaX) / 128)
+      const x = (e.pageX - dom.offsetLeft) / dom.offsetWidth
+      const y = (e.pageY - dom.offsetTop) / dom.offsetHeight
+      cb({ dx: 0, dy: 0, zoom: { x, y, v }})
+    } else {
+      cb({ dx: -e.deltaX, dy: -e.deltaY, zoom: { x: 0, y: 0, v: 1 } })
+    }
   })
   const pointers = new Map<number, { x: number; y: number }>()
+  dom.addEventListener('touchstart', e => e.preventDefault())
+  function calcCenter() {
+    const xsum = [...pointers.values()].map(p => p.x).reduce((a, b) => a + b, 0)
+    const ysum = [...pointers.values()].map(p => p.y).reduce((a, b) => a + b, 0)
+    const size = pointers.size || 1
+    return { x: xsum / size, y: ysum / size }
+  }
   dom.addEventListener('pointerdown', e => {
+    e.preventDefault()
+    if (pointers.size == 2) return
     pointers.set(e.pointerId, { x: e.screenX, y: e.screenY })
   })
   document.addEventListener('pointermove', e => {
     const p = pointers.get(e.pointerId)
     if (!p) return
-    const dx = e.screenX - p.x
-    const dy = e.screenY - p.y
-    p.x = e.screenX
-    p.y = e.screenY
-    cb({ dx, dy })
+    e.preventDefault()
+    const x = e.screenX
+    const y = e.screenY
+    const centerWas = calcCenter()
+    const lenWas = Math.hypot(p.x - centerWas.x, p.y - centerWas.y)
+    const dx = x - p.x
+    const dy = y - p.y
+    p.x = x
+    p.y = y
+    const center = calcCenter()
+    const len = Math.hypot(p.x - center.x, p.y - center.y)
+    const zoom = {
+      x: (center.x - dom.offsetLeft) / dom.offsetWidth,
+      y: (center.y - dom.offsetTop) / dom.offsetHeight,
+      v: (len + 2) / (lenWas + 2)
+    }
+    cb({ dx, dy, zoom })
   })
   document.addEventListener('pointerup', e => {
     pointers.delete(e.pointerId)
   })
-
-
 }
 
 onload = () => {
