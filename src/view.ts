@@ -276,9 +276,9 @@ export class View {
     const yconv = (y: number) => height / 2 - (y - center.y) * viewResolution / viewSize
     const xinv = (x: number) => center.x + (x - width / 2) * viewSize / viewResolution
     const yinv = (y: number) => center.y + (height / 2 - y) * viewSize / viewResolution
-    const fontSize = 8
+    const fontSize = 14
     let step = 10 ** Math.ceil(Math.log10(viewSize))
-    const min = Math.max(fontSize * 10, viewResolution / 8)
+    const min = Math.max(fontSize * 8, viewResolution / 8)
     let substep: number
     while (true) {
       const px = viewResolution * step / viewSize
@@ -299,22 +299,40 @@ export class View {
     }
     const ixmin = Math.ceil(xinv(0) / step * substep)
     const ixmax = Math.ceil(xinv(width) / step * substep)
-    ctx.save()
-    ctx.beginPath()
     for (let ix = ixmin; ix < ixmax; ix++) {
       ctx.globalAlpha = ix === 0 ? 1 : ix % substep === 0 ? 0.5 : 0.1
-      const screenX = xconv(ix * step / substep)
-      ctx.fillRect(screenX - 0.5, 0, 1, height)
+      const x = xconv(ix * step / substep)
+      ctx.fillRect(x - 0.5, 0, 1, height)
     }
     const iymin = Math.ceil(yinv(height) / step * substep)
     const iymax = Math.ceil(yinv(0) / step * substep)
     for (let iy = iymin; iy < iymax; iy++) {
       ctx.globalAlpha = iy === 0 ? 1 : iy % substep === 0 ? 0.5 : 0.1
-      const screenY = yconv(iy * step / substep)
-      ctx.fillRect(0, screenY - 0.5, width, 1)
+      const y = yconv(iy * step / substep)
+      ctx.fillRect(0, y - 0.5, width, 1)
     }
-    console.log(ixmax-ixmin, iymax-iymin)
-    ctx.fill()
+    const clamp = (v: number, min: number, max: number) => v < min ? min : max < v ? max : v
+    const xzero = xconv(0)
+    const yzero = yconv(0)
+    ctx.fillStyle = 'black'
+    ctx.globalAlpha = 1
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.font = `bold ${fontSize}px sans-serif`
+    for (let ix = ixmin; ix < ixmax; ix++) {
+      if (ix === 0 || ix % substep !== 0) continue
+      const x = xconv(ix * step / substep)
+      const label = (ix * step / substep).toFixed(10).replace(/\.?0+$/, '')
+      ctx.fillText(label, x, clamp(yzero + fontSize, fontSize / 2, height - fontSize / 2))
+    }
+    let offsetX = xzero > width - fontSize * 10 ? -fontSize / 4 : fontSize / 4
+    ctx.textAlign = offsetX < 0 ? 'right' : 'left'
+    for (let iy = iymin; iy < iymax; iy++) {
+      if (iy === 0 || iy % substep !== 0) continue
+      const label = (iy * step / substep).toFixed(10).replace(/\.?0+$/, '')
+      const y = yconv(iy * step / substep)
+      ctx.fillText(label, clamp(xzero + offsetX, 0, width), y)
+    }
   }
 
 }
