@@ -100,8 +100,8 @@ function gesture(dom: HTMLElement, cb: (e: { dx: number; dy: number; zoom: { x: 
     const y = e.screenY
     const centerWas = calcCenter()
     const lenWas = Math.hypot(p.x - centerWas.x, p.y - centerWas.y)
-    const dx = x - p.x
-    const dy = y - p.y
+    const dx = (x - p.x) / pointers.size
+    const dy = (y - p.y) / pointers.size
     p.x = x
     p.y = y
     const center = calcCenter()
@@ -114,6 +114,9 @@ function gesture(dom: HTMLElement, cb: (e: { dx: number; dy: number; zoom: { x: 
     cb({ dx, dy, zoom })
   })
   document.addEventListener('pointerup', e => {
+    pointers.delete(e.pointerId)
+  })
+  document.addEventListener('pointercancel', e => {
     pointers.delete(e.pointerId)
   })
 }

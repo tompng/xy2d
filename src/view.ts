@@ -188,19 +188,22 @@ export class View {
     const viewResolution = Math.min(width, height)
     const renderedPanelSize = this.renderedPanelSize
     const panelSize = panelResolution / viewResolution * viewSize
-    const canvasSize = renderedPanelSize * panelResolution / panelSize
+    const xAt = (ix: number) => width / 2 + (ix * renderedPanelSize - center.x) * panelResolution / panelSize
+    const yAt = (iy: number) => height / 2 - (iy* renderedPanelSize - center.y) * panelResolution / panelSize
     this.panels.forEach(({ ix, iy, panel }) => {
-      const lineCanvasSize = renderedPanelSize * (panelResolution + panel.offset * 2) / panelSize
-      const x = width / 2 + (ix * renderedPanelSize - center.x) * panelResolution / panelSize
-      const y = height / 2 - ((iy + 1)* renderedPanelSize - center.y) * panelResolution / panelSize
+      const offset = renderedPanelSize * panel.offset / panelSize
+      const x = Math.floor(xAt(ix))
+      const y = Math.floor(yAt(iy + 1))
+      const w = Math.floor(xAt(ix + 1)) - x
+      const h = Math.floor(yAt(iy)) - y
       panel.backgroundCanvas.style.left = `${x}px`
       panel.backgroundCanvas.style.top = `${y}px`
-      panel.lineCanvas.style.left = `${x - panel.offset}px`
-      panel.lineCanvas.style.top = `${y - panel.offset}px`
-      panel.backgroundCanvas.style.width = `${canvasSize}px`
-      panel.backgroundCanvas.style.height = `${canvasSize}px`
-      panel.lineCanvas.style.width = `${lineCanvasSize}px`
-      panel.lineCanvas.style.height = `${lineCanvasSize}px`
+      panel.lineCanvas.style.left = `${x - offset}px`
+      panel.lineCanvas.style.top = `${y - offset}px`
+      panel.backgroundCanvas.style.width = `${w}px`
+      panel.backgroundCanvas.style.height = `${h}px`
+      panel.lineCanvas.style.width = `${w + offset * 2}px`
+      panel.lineCanvas.style.height = `${h + offset * 2}px`
     })
   }
   timer: number | null = null
