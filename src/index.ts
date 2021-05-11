@@ -27,11 +27,13 @@ function calc(exp: string) {
     prevView.colors = colors
     prevView.reset()
     prevView.update(200)
+    prevView.renderAxis()
     return
   }
   const view = prevView = new View(fvalue, frange, colors)
   document.body.appendChild(view.dom)
   view.update(200)
+  view.renderAxis()
   view.dom.style.overflow = 'hidden'
   let unlockTimer: number | null = null
   gesture(view.dom, ({ dx, dy, zoom }) => {
@@ -49,6 +51,7 @@ function calc(exp: string) {
     view.center.y -= dty / zoom.v
     if (zoom.v !== 1) {
       view.updatePosition()
+      view.renderAxis()
       if (unlockTimer) {
         clearTimeout(unlockTimer)
       } else {
@@ -59,9 +62,11 @@ function calc(exp: string) {
         view.locked = false
         view.clear()
         view.update(200)
+        view.renderAxis()
       }, 200) as unknown as number
     } else {
       view.update()
+      view.renderAxis()
     }
   })
   ;(window as any).view = view

@@ -26,7 +26,7 @@ export class Panel {
     this.lineCanvas = document.createElement('canvas')
     this.backgroundCanvas.style.position = 'absolute'
     this.lineCanvas.style.position = 'absolute'
-    this.backgroundCanvas.style.zIndex = '1'
+    this.backgroundCanvas.style.zIndex = '0'
     this.lineCanvas.style.zIndex = '2'
     this.resetResolution(resolution)
   }
@@ -122,6 +122,7 @@ export class View {
   dom = document.createElement('div')
   pool: Panel[] = []
   locked = false
+  axisCanvas: HTMLCanvasElement
   constructor(
     public fvalue: ValueFunction,
     public frange: RangeFunction,
@@ -131,6 +132,14 @@ export class View {
       position: absolute;
       box-shadow: 0 0 1px black;
       background: white;
+    `
+    this.axisCanvas = document.createElement('canvas')
+    this.dom.appendChild(this.axisCanvas)
+    this.axisCanvas.style.cssText = `
+      position: absolute;
+      left: 0;
+      top: 0;
+      z-index: 1;
     `
   }
   lock() {
@@ -253,4 +262,59 @@ export class View {
     this.pool.length = 0
     this.panels.clear()
   }
+  renderAxis() {
+    const { axisCanvas, width, height, center, viewSize } = this
+    const viewResolution = Math.min(width, height)
+    if (axisCanvas.width !== width || axisCanvas.height !== height) {
+      axisCanvas.width = width
+      axisCanvas.height = height
+    }
+    const ctx = axisCanvas.getContext('2d')
+    if (!ctx) return
+    ctx.clearRect(0, 0, width, height)
+    const xconv = (x: number) => width / 2 + (x - center.x) * viewResolution / viewSize
+    const yconv = (y: number) => height / 2 - (y - center.y) * viewResolution / viewSize
+    const xinv = (x: number) => center.x + (x - width / 2) * viewSize / viewResolution
+    const yinv = (y: number) => center.y + (height / 2 - y) * viewSize / viewResolution
+    const fontSize = 8
+    let step = 10 ** Math.ceil(Math.log10(viewSize))
+    const min = Math.max(fontSize * 10, viewResolution / 8)
+    let substep: number
+    while (true) {
+      const px = viewResolution * step / viewSize
+      if (px / 10 > min) {
+        step /= 10
+        continue
+      }
+      if (px * 0.2 > min) {
+        substep = 4
+        step *= 0.2
+      } else if (px / 2 > min) {
+        substep = 5
+        step /= 2
+      } else {
+        substep = 5
+      }
+      break
+    }
+    const ixmin = Math.ceil(xinv(0) / step * substep)
+    const ixmax = Math.ceil(xinv(width) / step * substep)
+    ctx.save()
+    ctx.beginPath()
+    for (let ix = ixmin; ix < ixmax; ix++) {
+      ctx.globalAlpha = ix === 0 ? 1 : ix % substep === 0 ? 0.5 : 0.1
+      const screenX = xconv(ix * step / substep)
+      ctx.fillRect(screenX - 0.5, 0, 1, height)
+    }
+    const iymin = Math.ceil(yinv(height) / step * substep)
+    const iymax = Math.ceil(yinv(0) / step * substep)
+    for (let iy = iymin; iy < iymax; iy++) {
+      ctx.globalAlpha = iy === 0 ? 1 : iy % substep === 0 ? 0.5 : 0.1
+      const screenY = yconv(iy * step / substep)
+      ctx.fillRect(0, screenY - 0.5, width, 1)
+    }
+    console.log(ixmax-ixmin, iymax-iymin)
+    ctx.fill()
+  }
+
 }
