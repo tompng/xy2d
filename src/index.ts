@@ -31,6 +31,17 @@ function calc(exp: string) {
     return
   }
   const view = prevView = new View(fvalue, frange, colors)
+  const setSize = () => {
+    view.width = window.innerWidth - 40
+    view.height = window.innerHeight - 100
+  }
+  setSize()
+  window.onresize = () => {
+    setSize()
+    if (!view.locked) view.update()
+    else view.updatePosition()
+    view.renderAxis()
+  }
   document.body.appendChild(view.dom)
   view.update(200)
   view.renderAxis()
@@ -46,7 +57,7 @@ function calc(exp: string) {
     const dty = ty - view.center.y
     view.center.x += dtx
     view.center.y += dty
-    view.viewSize /= zoom.v
+    view.sizePerPixel /= zoom.v
     view.center.x -= dtx / zoom.v
     view.center.y -= dty / zoom.v
     if (zoom.v !== 1) {

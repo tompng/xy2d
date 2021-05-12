@@ -115,7 +115,6 @@ export class View {
   center = { x: 0, y: 0 }
   width = 800
   height = 800
-  viewSize = 4
   panelResolution = 128
   renderedPanelSize = 0
   panels = new Map<string, { ix: number; iy: number; prior: boolean; panel: Panel }>()
@@ -123,6 +122,7 @@ export class View {
   pool: Panel[] = []
   locked = false
   axisCanvas: HTMLCanvasElement
+  sizePerPixel = 0
   constructor(
     public fvalue: ValueFunction,
     public frange: RangeFunction,
@@ -141,18 +141,24 @@ export class View {
       top: 0;
       z-index: 1;
     `
+    this.setViewSize(4)
   }
   lock() {
     this.locked = true
     if (this.timer) clearTimeout(this.timer)
     this.timer = null
   }
+  setViewSize(viewSize: number) {
+    const viewResolution = Math.min(this.width, this.height)
+    this.sizePerPixel = viewSize / viewResolution
+  }
   update(timeout = 30) {
     if (this.locked) return
     this.dom.style.width = `${this.width}px`
     this.dom.style.height = `${this.height}px`
-    const { center, width, height, viewSize, panelResolution } = this
+    const { center, width, height, sizePerPixel, panelResolution } = this
     const viewResolution = Math.min(width, height)
+    const viewSize = sizePerPixel * viewResolution
     const panelSize = panelResolution / viewResolution * viewSize
     this.renderedPanelSize = panelSize
     const xmin = center.x - viewSize * width / viewResolution / 2
@@ -192,10 +198,14 @@ export class View {
     while (this.pool.length > 64) this.pool.pop()?.release()
     this.render(timeout)
   }
+  get viewSize() {
+    const viewResolution = Math.min(this.width, this.height)
+    return this.sizePerPixel * viewResolution
+  }
   updatePosition() {
-    const { width, height, center, panelResolution, viewSize } = this
+    const { width, height, center, renderedPanelSize, panelResolution, sizePerPixel } = this
     const viewResolution = Math.min(width, height)
-    const renderedPanelSize = this.renderedPanelSize
+    const viewSize = sizePerPixel * viewResolution
     const panelSize = panelResolution / viewResolution * viewSize
     const xAt = (ix: number) => width / 2 + (ix * renderedPanelSize - center.x) * panelResolution / panelSize
     const yAt = (iy: number) => height / 2 - (iy* renderedPanelSize - center.y) * panelResolution / panelSize
@@ -263,8 +273,9 @@ export class View {
     this.panels.clear()
   }
   renderAxis() {
-    const { axisCanvas, width, height, center, viewSize } = this
+    const { axisCanvas, width, height, center, sizePerPixel } = this
     const viewResolution = Math.min(width, height)
+    const viewSize = sizePerPixel * viewResolution
     if (axisCanvas.width !== width || axisCanvas.height !== height) {
       axisCanvas.width = width
       axisCanvas.height = height
