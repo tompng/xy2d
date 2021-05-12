@@ -141,9 +141,9 @@ onload = () => {
   const input = document.querySelector('input')!
   document.querySelector('form')!.onsubmit = e => {
     e.preventDefault()
-    const value = input.value
-    calc(value)
+    calc(input.value)
   }
+  document.querySelector('input')!.onblur = () => calc(input.value)
   input.value = 'x^2+y^2>1'
   input.value = '((sqrt(1/16^2+x^2)-1/3)^2+((11y-1)/12)^2-1/7)*((sqrt(x^2)-4/13)^2+(y-1/8)^2-1/9)*((sqrt(x^2)-2/7)^2+(y-1/6)^2-(2/11)^2)*(exp(-y-1/2-(3+(1.2-cos14x)^(1/4))/(5+(5/3*x(1+y/3))^16)*1.2/(1+exp(4y)))+exp(-6+3x+3y)+exp(-6-3x+3y)-2/3)'
   calc(input.value)
