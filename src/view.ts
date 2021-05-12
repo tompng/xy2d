@@ -283,8 +283,8 @@ export class View {
     const ctx = axisCanvas.getContext('2d')
     if (!ctx) return
     ctx.clearRect(0, 0, width, height)
-    const xconv = (x: number) => width / 2 + (x - center.x) * viewResolution / viewSize
-    const yconv = (y: number) => height / 2 - (y - center.y) * viewResolution / viewSize
+    const xconv = (x: number) => Math.floor(width / 2 + (x - center.x) * viewResolution / viewSize)
+    const yconv = (y: number) => Math.floor(height / 2 - (y - center.y) * viewResolution / viewSize)
     const xinv = (x: number) => center.x + (x - width / 2) * viewSize / viewResolution
     const yinv = (y: number) => center.y + (height / 2 - y) * viewSize / viewResolution
     const fontSize = 14
