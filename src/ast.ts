@@ -20,6 +20,21 @@ export type ASTNode = string | number | {
 
 const mathConstants = { e: Math.E, pi: Math.PI }
 
+export function extractVariables(ast: ASTNode, constants: Record<string, number> = mathConstants) {
+  const set = new Set<string>()
+  function extract(ast: ASTNode) {
+    if (typeof ast === 'number') return
+    if (typeof ast === 'string') {
+      if (!constants[ast]) set.add(ast)
+    } else {
+      extract(ast.a)
+      if ('b' in ast) extract(ast.b)
+    }
+  }
+  extract(ast)
+  return [...set]
+}
+
 export function compactAST(ast: ASTNode, constants: Record<string, number>): ASTNode {
   if (typeof ast === 'number') return ast
   if (typeof ast === 'string') {

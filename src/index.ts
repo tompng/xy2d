@@ -1,4 +1,4 @@
-import { astToFunction, astToRangeFunction } from './ast'
+import { astToFunction, astToRangeFunction, extractVariables } from './ast'
 import { parse } from './parser'
 import { View } from './view'
 ;(window as any).parse = parse
@@ -9,7 +9,16 @@ function sleep(ms: number) {
 
 let prevView: View | undefined
 function calc(exp: string) {
-  const [ast, mode] = parse(exp)
+  let [ast, mode] = parse(exp)
+  const variables = extractVariables(ast)
+  if (!variables.includes('y') && !mode) {
+    ast = { op: '-', a: 'y', b: ast }
+    mode = '='
+  } else if (!variables.includes('x') && !mode) {
+    ast = { op: '-', a: 'x', b: ast }
+    mode = '='
+  }
+
   const compareOption = {
     pos: mode !== '=',
     neg: mode === null
