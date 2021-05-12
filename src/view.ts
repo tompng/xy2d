@@ -27,7 +27,7 @@ export class Panel {
     this.backgroundCanvas.style.position = 'absolute'
     this.lineCanvas.style.position = 'absolute'
     this.backgroundCanvas.style.zIndex = '0'
-    this.lineCanvas.style.zIndex = '2'
+    this.lineCanvas.style.zIndex = '1'
     this.resetResolution(resolution)
   }
   reset(
@@ -139,7 +139,7 @@ export class View {
       position: absolute;
       left: 0;
       top: 0;
-      z-index: 1;
+      z-index: 2;
     `
     this.setViewSize(4)
   }
@@ -330,19 +330,25 @@ export class View {
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
     ctx.font = `bold ${fontSize}px sans-serif`
+    ctx.lineWidth = 2
+    ctx.strokeStyle = 'white'
     for (let ix = ixmin; ix < ixmax; ix++) {
       if (ix === 0 || ix % substep !== 0) continue
       const x = xconv(ix * step / substep)
       const label = (ix * step / substep).toFixed(10).replace(/\.?0+$/, '')
-      ctx.fillText(label, x, clamp(yzero + fontSize, fontSize / 2, height - fontSize / 2))
+      const y = clamp(yzero + fontSize, fontSize / 2, height - fontSize / 2)
+      ctx.strokeText(label, x, y)
+      ctx.fillText(label, x, y)
     }
     let offsetX = xzero > width - fontSize * 10 ? -fontSize / 4 : fontSize / 4
     ctx.textAlign = offsetX < 0 ? 'right' : 'left'
     for (let iy = iymin; iy < iymax; iy++) {
       if (iy === 0 || iy % substep !== 0) continue
       const label = (iy * step / substep).toFixed(10).replace(/\.?0+$/, '')
+      const x = clamp(xzero + offsetX, 0, width)
       const y = yconv(iy * step / substep)
-      ctx.fillText(label, clamp(xzero + offsetX, 0, width), y)
+      ctx.strokeText(label, x, y)
+      ctx.fillText(label, x, y)
     }
   }
 
