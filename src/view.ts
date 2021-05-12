@@ -283,10 +283,16 @@ export class View {
     const ctx = axisCanvas.getContext('2d')
     if (!ctx) return
     ctx.clearRect(0, 0, width, height)
-    const xconv = (x: number) => Math.floor(width / 2 + (x - center.x) * viewResolution / viewSize)
-    const yconv = (y: number) => Math.floor(height / 2 - (y - center.y) * viewResolution / viewSize)
+    let xoffset = 0
+    let yoffset = 0
+    const xconv = (x: number) => width / 2 + (x - center.x) * viewResolution / viewSize + xoffset
+    const yconv = (y: number) => height / 2 - (y - center.y) * viewResolution / viewSize + yoffset
     const xinv = (x: number) => center.x + (x - width / 2) * viewSize / viewResolution
     const yinv = (y: number) => center.y + (height / 2 - y) * viewSize / viewResolution
+    xoffset = Math.floor(xconv(0)) - xconv(0)
+    yoffset = Math.floor(yconv(0)) - yconv(0)
+    const xzero = xconv(0)
+    const yzero = yconv(0)
     const fontSize = 14
     let step = 10 ** Math.ceil(Math.log10(viewSize))
     const min = Math.max(fontSize * 8, viewResolution / 8)
@@ -323,8 +329,6 @@ export class View {
       ctx.fillRect(0, y - 0.5, width, 1)
     }
     const clamp = (v: number, min: number, max: number) => v < min ? min : max < v ? max : v
-    const xzero = xconv(0)
-    const yzero = yconv(0)
     ctx.fillStyle = 'black'
     ctx.globalAlpha = 1
     ctx.textAlign = 'center'
@@ -340,12 +344,12 @@ export class View {
       ctx.strokeText(label, x, y)
       ctx.fillText(label, x, y)
     }
-    let offsetX = xzero > width - fontSize * 10 ? -fontSize / 4 : fontSize / 4
-    ctx.textAlign = offsetX < 0 ? 'right' : 'left'
+    let labelOffsetX = xzero > width - fontSize * 10 ? -fontSize / 4 : fontSize / 4
+    ctx.textAlign = labelOffsetX < 0 ? 'right' : 'left'
     for (let iy = iymin; iy < iymax; iy++) {
       if (iy === 0 || iy % substep !== 0) continue
       const label = (iy * step / substep).toFixed(10).replace(/\.?0+$/, '')
-      const x = clamp(xzero + offsetX, 0, width)
+      const x = clamp(xzero + labelOffsetX, 0, width)
       const y = yconv(iy * step / substep)
       ctx.strokeText(label, x, y)
       ctx.fillText(label, x, y)
