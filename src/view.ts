@@ -153,7 +153,10 @@ export class View {
     this.sizePerPixel = viewSize / viewResolution
   }
   update(timeout = 30) {
-    if (this.locked) return
+    if (this.locked) {
+      this.updatePosition()
+      return
+    }
     this.dom.style.width = `${this.width}px`
     this.dom.style.height = `${this.height}px`
     const { center, width, height, sizePerPixel, panelResolution } = this
