@@ -31,12 +31,7 @@ setTimeout(() => {
   calc(convertLatex(mathField.latex()))
 })
 
-
 ;(window as any).parse = parse
-
-function sleep(ms: number) {
-  return new Promise<void>(resolve => setTimeout(resolve, ms))
-}
 
 let prevView: View | undefined
 function calc(exp: string) {
@@ -175,70 +170,4 @@ function gesture(dom: HTMLElement, cb: (e: { dx: number; dy: number; zoom: { x: 
   document.addEventListener('pointercancel', e => {
     pointers.delete(e.pointerId)
   })
-}
-
-// const lines = pointsToLines(pr, size)
-// console.log(lines.length)
-// ctx.lineWidth = 4
-// ctx.strokeStyle = 'red'
-// lines.forEach((line) => {
-//   ctx.beginPath()
-//   ctx.moveTo(line[0], line[1])
-//   for (let i = 2; i < line.length; i += 2) ctx.lineTo(line[i], line[i + 1])
-//   ctx.stroke()
-// })
-// points: [xi, yi, x, y, ...]
-function pointsToLines(points: number[], resolution: number) {
-  const xmap = new Map<number, number>()
-  const ymap = new Map<number, number>()
-  const visited = new Set<number>()
-  const keys: number[] = []
-  const N = 2 * resolution
-  for (let i = 0; i < points.length;) {
-    const xi = points[i++]
-    const yi = points[i++]
-    const x = points[i++]
-    const y = points[i++]
-    const key = yi * N + xi
-    keys.push(key)
-    xmap.set(key, x)
-    ymap.set(key, y)
-  }
-  const lines: number[][] = []
-  keys.forEach(key0 => {
-    const line = [xmap.get(key0)!, ymap.get(key0)!]
-    for (let i = 0; i < 2; i++) {
-      let key = key0
-      let xi = key % N
-      let yi = (key - xi) / N
-      while (true) {
-        if (!visited.has(key * 2) && xmap.has(key - N)) {
-          visited.add(key * 2)
-          key -= N
-          yi --
-        } else if (!visited.has(key * 2 + 1) && xmap.has(key - 1)) {
-          visited.add(key * 2 + 1)
-          key --
-          xi --
-        } else if (!visited.has((key + N) * 2) && xmap.has(key + N)) {
-          visited.add((key + N) * 2)
-          key += N
-          yi ++
-        } else if (!visited.has((key + 1) * 2 + 1) && xmap.has(key + 1)) {
-          visited.add((key + 1) * 2 + 1)
-          key ++
-          xi ++
-        } else {
-          break
-        }
-        if (i === 0) {
-          line.push(xmap.get(key)!, ymap.get(key)!)
-        } else {
-          line.unshift(xmap.get(key)!, ymap.get(key)!)
-        }
-      }
-    }
-    if (line.length > 2) lines.push(line)
-  })
-  return lines
 }
