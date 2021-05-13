@@ -10,7 +10,11 @@ module.exports = {
       {
         test: /\.ts$/,
         use: 'ts-loader'
-      }
+      },
+      {
+        test: /\.css$/,
+        use: 'raw-loader'
+      },
     ]
   },
   resolve: {
