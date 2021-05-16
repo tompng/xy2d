@@ -1,4 +1,4 @@
-import { expanders, results, GAPMARK, NANMARK, Expander, MinMaxVarName, NameGenerator, RangeResult } from "./expander"
+import { expanders, specialVariables, results, GAPMARK, NANMARK, Expander, MinMaxVarName, NameGenerator, RangeResult } from "./expander"
 
 export type RangeFunction = (xmin: number, xmax: number, ymin: number, ymax: number) => RangeResult
 export type ValueFunction = (x: number, y: number) => number
@@ -127,19 +127,49 @@ export function astToRangeCode(ast: ASTNode, args: Set<string>): string | number
 }
 
 export function astToFunction(ast: ASTNode, constants: Record<string, number> = mathConstants): (x: number, y: number) => number {
-  const args = new Set(['x', 'y'])
-  return eval(`(x, y) => ${astToCode(compactAST(ast, constants), args)}`)
+  const args = new Set(['x', 'y', 'r', 'theta'])
+  const variables = extractVariables(ast)
+  const codes: string[] = []
+  if (variables.includes('theta')) codes.unshift('const theta=Math.atan2(y,x);')
+  if (variables.includes('r')) codes.unshift('const r=Math.hypot(x,y);')
+  const retval = astToCode(compactAST(ast, constants), args)
+  const code = codes.length === 0 ? retval : `{${codes.join('')}return ${retval}}`
+  console.log(`(x, y) => ${code}`)
+  return eval(`(x, y) => ${code}`)
 }
 
-function astToRangeVarNameCode(ast: ASTNode, args: Record<string, MinMaxVarName>, expanders: Record<string, Expander>, namer: NameGenerator): [MinMaxVarName | number, string] {
+function astToRangeVarNameCode(
+  ast: ASTNode,
+  args: Record<string, MinMaxVarName>,
+  expanders: Record<string, Expander>,
+  namer: NameGenerator
+): [MinMaxVarName | number, string] {
+  const variables = extractVariables(ast)
+  const normalVariables = new Set(['x', 'y'])
+  const codes: string[] = []
+  const specialArgs = { ...args }
+  ;[...new Set(variables)].forEach(varname => {
+    if (normalVariables.has(varname)) return
+    const expander = specialVariables[varname]
+    if (!expander) throw `Unknown variable ${varname}`
+    const [names, code] = expander(args['x'], args['y'], namer)
+    codes.push(code)
+    specialArgs[varname] = names as MinMaxVarName
+  })
+  const [result, code] = astToRangeVarNameCodeRec(ast, specialArgs, expanders, namer)
+  codes.push(code)
+  return [result, codes.join(';')]
+}
+
+function astToRangeVarNameCodeRec(ast: ASTNode, args: Record<string, MinMaxVarName>, expanders: Record<string, Expander>, namer: NameGenerator): [MinMaxVarName | number, string] {
   if (typeof ast === 'number') return [ast, '']
   if (typeof ast === 'string') {
     const varname = args[ast]
     if (!varname) throw new Error(`Unknown constant or variable: ${ast}`)
     return [varname, '']
   }
-  const [a, acode] = astToRangeVarNameCode(ast.a, args, expanders, namer)
-  const [b, bcode] = 'b' in ast ? astToRangeVarNameCode(ast.b, args, expanders, namer) : [0, '']
+  const [a, acode] = astToRangeVarNameCodeRec(ast.a, args, expanders, namer)
+  const [b, bcode] = 'b' in ast ? astToRangeVarNameCodeRec(ast.b, args, expanders, namer) : [0, '']
   const expander = expanders[ast.op]
   if (!expander) throw new Error(`Expander undefined for: ${ast.op}`)
   const [c, ccode] = expander(a, b, namer)
@@ -161,7 +191,7 @@ export function astToRangeFunction(ast: ASTNode, option: { pos?: boolean; neg?: 
   }
   const [result, code] = astToRangeVarNameCode(
     compactAST(ast, constants),
-    { x: ['xmin', 'xmax'], y: ['ymin', 'ymax']},
+    { x: ['xmin', 'xmax'], y: ['ymin', 'ymax'] },
     expanders,
     nameGenerator
   )

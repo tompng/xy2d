@@ -1,11 +1,17 @@
 import type { ASTNode } from './ast'
 // TODO: pow, abs min, max, etc
-const functionNames = new Set(['log', 'exp', 'sqrt', 'pow', 'hypot', 'sin', 'cos', 'tan', 'asin', 'acos', 'atan', 'sinh', 'cosh', 'tanh', 'asinh', 'acosh', 'atanh', 'atan2', '√', 'abs'])
+const functionNames = new Set(['log', 'exp', 'sqrt', 'pow', 'hypot', 'sin', 'cos', 'tan', 'asin', 'acos', 'atan', 'sinh', 'cosh', 'tanh', 'asinh', 'acosh', 'atanh', 'atan2', '√', 'abs', 'arctan'])
 const constantNames = new Set(['e', 'pi', 'π', 'PI', 'E'])
-const varNames = new Set(['x', 'y'])
+const varNames = new Set(['x', 'y', 'th', 'theta', 'r', 'θ'])
 const comparers = new Set(['<', '=', '>', '<=', '>='])
 const operators = new Set(['+', '-', '*', '/', '^', '**'])
+const alias: Record<string, string | undefined> = {
+  '**': '^', '√': 'sqrt', 'arctan': 'atan',
+  'π': 'pi', 'PI': 'pi', 'E': 'e',
+  'th': 'theta', 'θ': 'theta'
+}
 const tokenSet = new Set([...functionNames, ...constantNames, ...varNames, ...operators, ...comparers, ',', ' '])
+const maxTokenSize = Math.max(...[...tokenSet].map(v => v.length))
 
 type ParenGroup = (string | ParenGroup)[]
 function parseParen(input: string): ParenGroup {
@@ -27,9 +33,9 @@ function parseParen(input: string): ParenGroup {
   if (stack.length !== 1) throw 'Paren Mismatch'
   return current
 }
-const opAlias: Record<string, string | undefined> = { '**': '^', '√': 'sqrt', 'π': 'pi', 'PI': 'pi', 'E': 'e' }
+
 function convertAlias(s: string) {
-  return opAlias[s] || s
+  return alias[s] || s
 }
 
 function matchToken(s: string, i: number): [number | string, number] | null{
@@ -39,7 +45,7 @@ function matchToken(s: string, i: number): [number | string, number] | null{
     while (i + len < s.length && (s[i + len].match(/\d/) || (dotCount === 0 && s[i + len] === '.'))) len++
     return [parseFloat(s.substr(i, len)), len]
   }
-  for (let len = 5; len >= 1; len-=1) {
+  for (let len = maxTokenSize; len >= 1; len-=1) {
     if (tokenSet.has(s.substr(i, len))) return [convertAlias(s.substr(i, len)), len]
   }
   return null

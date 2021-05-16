@@ -308,7 +308,7 @@ const atan2: Expander = (y, x, namer) => {
   const v4 = namer()
   const code = [
     `let ${minvar},${maxvar};`,
-    `if(${xmin}<0&&${ymin}<0&&${ymax}>0){${GAPMARK};${minvar}=${-Math.PI};${maxvar}=${Math.PI}}`,
+    `if(${xmin}<0&&${ymin}<=0&&${ymax}>=0){${GAPMARK};${minvar}=${-Math.PI};${maxvar}=${Math.PI}}`,
     `else{const `,
       `${v1}=Math.atan2(${ymin},${xmin}),`,
       `${v2}=Math.atan2(${ymin},${xmax}),`,
@@ -360,4 +360,9 @@ export const expanders = {
   atan2,
   pow,
   abs
+}
+
+export const specialVariables: Record<string, Expander> = {
+  theta: (a, b, namer) => atan2(b, a, namer),
+  r: hypot
 }

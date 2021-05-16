@@ -21,7 +21,7 @@ setTimeout(() => {
         try {
           calc(convertLatex(mathField.latex()))
         } catch (e) {
-
+          console.error(e)
         }
       }
     },
@@ -37,12 +37,14 @@ let prevView: View | undefined
 function calc(exp: string) {
   let [ast, mode] = parse(exp)
   const variables = extractVariables(ast)
-  if (!variables.includes('y') && !mode) {
-    ast = { op: '-', a: 'y', b: ast }
-    mode = '='
-  } else if (!variables.includes('x') && !mode) {
-    ast = { op: '-', a: 'x', b: ast }
-    mode = '='
+  if (!mode && variables.length <= 1) {
+    if (variables.length === 0 || variables[0] === 'x') {
+      ast = { op: '-', a: 'y', b: ast }
+      mode = '='
+    } else if (variables[0] === 'y') {
+      ast = { op: '-', a: 'x', b: ast }
+      mode = '='
+    }
   }
 
   const compareOption = {
