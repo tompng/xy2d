@@ -1,5 +1,3 @@
-import { ASTNode } from './ast'
-
 export function convertLatex(s: string) {
   const block = parse1(s)
   return convert(block)

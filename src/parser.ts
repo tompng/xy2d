@@ -91,7 +91,7 @@ function buildRootAST(group: TokenParenGroup): [ASTNode, '=' | '>' | '>=' | null
   const left = buildAST(group.slice(0, idx))
   const right = buildAST(group.slice(idx + 1))
   if (Array.isArray(left) || Array.isArray(right)) throw 'Unexpected comma'
-  const ast: ASTNode = cmp.includes('>') ? { op: '-', a: left, b: right } : { op: '-', a: right, b: left }
+  const ast: ASTNode = cmp.includes('>') ? { op: '-', args: [left, right] } : { op: '-', args: [right, left] }
   if (cmp === '=') return [ast, '=']
   return [ast, cmp.includes('=') ? '>=' : '>']
 }
@@ -115,9 +115,9 @@ function buildFuncMultPow(group: TokenParenGroup): ASTNode {
       const isPrevFunc = typeof prev === 'string' && functionNames.has(prev)
       if (v.type === 'args') {
         if (!isPrevFunc) throw 'Function Required'
-        const fcall = { op: prev, a: v.value[0], b: v.value[1] } as ASTNode
+        const fcall = { op: prev, args: v.value } as ASTNode
         if (pow) {
-          mults.unshift({ op: '^', a: fcall, b: pow })
+          mults.unshift({ op: '^', args: [fcall, pow] })
           pow = undefined
         } else {
           mults.unshift(fcall)
@@ -125,7 +125,7 @@ function buildFuncMultPow(group: TokenParenGroup): ASTNode {
         index--
       } else {
         if (pow && !isPrevFunc) {
-          mults.unshift({ op: '^', a: v.value, b: pow })
+          mults.unshift({ op: '^', args: [v.value, pow] })
           pow = undefined
         } else {
           mults.unshift(v.value)
@@ -139,18 +139,18 @@ function buildFuncMultPow(group: TokenParenGroup): ASTNode {
     } else if (typeof v === 'string' && functionNames.has(v)) {
       if (!mults[0]) throw `Function Arg Required: ${v}`
       if (pow) {
-        mults[0] = { op: '^', a: { op: v, a: mults[0] } as ASTNode, b: pow }
+        mults[0] = { op: '^', args: [{ op: v, args: [mults[0]] }, pow] }
         pow = undefined
       } else {
-        mults[0] = { op: v, a: mults[0] } as ASTNode
+        mults[0] = { op: v, args: [mults[0]] }
       }
       concatable = false
     } else {
       if (pow) {
-        mults.unshift({ op: '^', a: v, b: pow })
+        mults.unshift({ op: '^', args: [v, pow] })
         pow = undefined
       } else if (concatable) {
-        mults[0] = { op: '*', a: v, b: mults[0] as ASTNode }
+        mults[0] = { op: '*', args: [v, mults[0]] }
       } else {
         mults.unshift(v)
       }
@@ -159,7 +159,7 @@ function buildFuncMultPow(group: TokenParenGroup): ASTNode {
   }
   if (pow) throw 'Error at ^'
   if (mults.length === 0) throw `Unexpected Empty Block`
-  return mults.reduce((a, b) => ({ op: '*', a, b }))
+  return mults.reduce((a, b) => ({ op: '*', args: [a, b] }))
 }
 function splitByOp(group: TokenParenGroup, index: number): ASTNode {
   if (index === oplist.length) return buildFuncMultPow(group)
@@ -186,11 +186,11 @@ function splitByOp(group: TokenParenGroup, index: number): ASTNode {
       throw `No Right Hand Side: ${op}`
     } 
     if (left == null) {
-      if (op === '-') ast = { op: '-@', a: right }
+      if (op === '-') ast = { op: '-@', args: [right] }
       else if (op === ' ') ast = right
       else throw `No Left Hand Side: ${op}`
     } else {
-      ast = { op: op === ' ' ? '*' : op, a: left, b: right } as ASTNode
+      ast = { op: op === ' ' ? '*' : op, args: [left, right] } as ASTNode
     }
   })
   if (ast == null) throw 'Unexpected Empty Group'

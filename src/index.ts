@@ -39,10 +39,13 @@ function calc(exp: string) {
   const variables = extractVariables(ast)
   if (!mode && variables.length <= 1) {
     if (variables.length === 0 || variables[0] === 'x') {
-      ast = { op: '-', a: 'y', b: ast }
+      ast = { op: '-', args: ['y', ast] }
       mode = '='
     } else if (variables[0] === 'y') {
-      ast = { op: '-', a: 'x', b: ast }
+      ast = { op: '-', args: ['x', ast] }
+      mode = '='
+    } else if (variables[0] === 'theta') {
+      ast = { op: '-', args: ['r', ast] }
       mode = '='
     }
   }

@@ -2,20 +2,9 @@ import { expanders, specialVariables, results, GAPMARK, NANMARK, Expander, MinMa
 
 export type RangeFunction = (xmin: number, xmax: number, ymin: number, ymax: number) => RangeResult
 export type ValueFunction = (x: number, y: number) => number
-type UnaryOp =
-  | '-@' | 'log' | 'exp'
-  | 'sin' | 'cos' | 'tan'
-  | 'sinh' | 'cosh' | 'tanh'
-  | 'asin' | 'acos' | 'atan'
-  | 'asinh' | 'acosh' | 'atanh' | 'sqrt' | 'abs'
-type BinaryOp = '+' | '-' | '*' | '/' | '^' | 'hypot' | 'atan2' | 'pow'
 export type ASTNode = string | number | {
-  op: UnaryOp
-  a: ASTNode
-} | {
-  op: BinaryOp
-  a: ASTNode
-  b: ASTNode
+  op: string
+  args: ASTNode[]
 }
 
 const mathConstants = { e: Math.E, pi: Math.PI }
@@ -27,12 +16,15 @@ export function extractVariables(ast: ASTNode, constants: Record<string, number>
     if (typeof ast === 'string') {
       if (!constants[ast]) set.add(ast)
     } else {
-      extract(ast.a)
-      if ('b' in ast) extract(ast.b)
+      ast.args.forEach(arg => extract(arg))
     }
   }
   extract(ast)
   return [...set]
+}
+
+function isNumberArray(arr: any[]): arr is number[] {
+  return arr.every(arg => typeof arg === 'number')
 }
 
 export function compactAST(ast: ASTNode, constants: Record<string, number>): ASTNode {
@@ -41,88 +33,74 @@ export function compactAST(ast: ASTNode, constants: Record<string, number>): AST
     const value = constants[ast]
     return typeof value === 'number' ? value : ast
   }
-  if ('b' in ast) {
-    const a = compactAST(ast.a, constants)
-    const b = compactAST(ast.b, constants)
-    if (typeof a !== 'number' || typeof b !== 'number') return { ...ast, a, b }
-    switch (ast.op) {
-      case '+': return a + b
-      case '-': return a - b
-      case '*': return a * b
-      case '/': return a / b
-      case '^': return a ** b
-      case 'hypot': return Math.hypot(a, b)
-      case 'atan2': return Math.atan2(a, b)
-      case 'pow': return Math.pow(a, b)
-    }
-  } else {
-    const a = compactAST(ast.a, constants)
-    if (typeof a !== 'number') return { ...ast, a }
-    switch (ast.op) {
-      case '-@': return -a
-      case 'exp': return Math.exp(a)
-      case 'log': return Math.log(a)
-      case 'sqrt': return Math.sqrt(a)
-      case 'sin': return Math.sin(a)
-      case 'cos': return Math.cos(a)
-      case 'tan': return Math.tan(a)
-      case 'sinh': return Math.sinh(a)
-      case 'cosh': return Math.cosh(a)
-      case 'tanh': return Math.tanh(a)
-      case 'asin': return Math.asin(a)
-      case 'acos': return Math.acos(a)
-      case 'atan': return Math.atan(a)
-      case 'asinh': return Math.asinh(a)
-      case 'acosh': return Math.acosh(a)
-      case 'atanh': return Math.atanh(a)
-      case 'abs': return Math.abs(a)
+  const args = ast.args.map(arg => compactAST(arg, constants))
+  if (isNumberArray(args)) {
+    if (args.length === 2) {
+      const [a, b] = args
+      switch (ast.op) {
+        case '+': return a + b
+        case '-': return a - b
+        case '*': return a * b
+        case '/': return a / b
+        case '^': return a ** b
+        case 'hypot': return Math.hypot(a, b)
+        case 'atan':
+        case 'atan2': return Math.atan2(a, b)
+        case 'pow': return Math.pow(a, b)
+      }
+    } else {
+      const [a] = args
+      switch (ast.op) {
+        case '-@': return -a
+        case 'exp': return Math.exp(a)
+        case 'log': return Math.log(a)
+        case 'sqrt': return Math.sqrt(a)
+        case 'sin': return Math.sin(a)
+        case 'cos': return Math.cos(a)
+        case 'tan': return Math.tan(a)
+        case 'sinh': return Math.sinh(a)
+        case 'cosh': return Math.cosh(a)
+        case 'tanh': return Math.tanh(a)
+        case 'asin': return Math.asin(a)
+        case 'acos': return Math.acos(a)
+        case 'atan': return Math.atan(a)
+        case 'asinh': return Math.asinh(a)
+        case 'acosh': return Math.acosh(a)
+        case 'atanh': return Math.atanh(a)
+        case 'abs': return Math.abs(a)
+      }
     }
   }
+  return { op: ast.op, args }
 }
 
-export function astToCode(ast: ASTNode, args: Set<string>): string {
+export function astToCode(ast: ASTNode, argNames: Set<string>): string {
   if (typeof ast === 'number') return ast.toString()
   if (typeof ast === 'string') {
-    if (args.has(ast)) return ast
+    if (argNames.has(ast)) return ast
     throw new Error(`Unknown constant or variable: ${ast}`)
   }
-  const a = astToCode(ast.a, args)
-  const b = 'b' in ast ? astToCode(ast.b, args) : undefined
-  switch (ast.op) {
-    case '^': return `(${a}**${b})`
-    case '-@': return `(-${a})`
-    case '+':
-    case '-':
-    case '*':
-    case '/':
-      return `(${a}${ast.op}${b})`
-    default:
-      if ('b' in ast) return `Math.${ast.op}(${a},${b})`
-      return `Math.${ast.op}(${a})`
-  }
-}
-export function astToRangeCode(ast: ASTNode, args: Set<string>): string | number {
-  if (typeof ast === 'number') return ast
-  if (typeof ast === 'string') {
-    if (args.has(ast)) return ast
-    throw new Error(`Unknown constant or variable: ${ast}`)
-  }
-  const a = astToRangeCode(ast.a, args)
-  if ('b' in ast) {
-    const b = astToRangeCode(ast.b, args)
-    const ta = typeof a === 'number' ? 'C' : 'V'
-    const tb = typeof b === 'number' ? 'C' : 'V'
+  const args = ast.args.map(arg => astToCode(arg, argNames))
+  if (args.length === 2) {
+    const [a, b] = args
     switch (ast.op) {
-      case '+': return ta === 'C' ? `addVC(${b},${a})` : tb === 'C' ? `addVC(${a},${b})` : `addVV(${a},${b})`
-      case '-': return ta === 'C' ? `subCV(${a},${b})` : typeof(b) === 'number' ? `addVC(${a},${-b})` : `subVV(${a},${b})`
-      case '*': return ta === 'C' ? `multVC(${b},${a})` : tb === 'C' ? `multVC(${a},${b})` : `multVV(${a},${b})`
-      case '/': return ta === 'C' ? `multVC(invV(${b}),${a})` : typeof b === 'number' ? `multVC(${a},${1 / b})` : `divVV(${a},${b})`
-      case '^': return `pow${ta}${tb}(${a},${b})`
-      default: throw 'Error'
+      case '^': return `(${a}**${b})`
+      case '+':
+      case '-':
+      case '*':
+      case '/':
+        return `(${a}${ast.op}${b})`
+      case 'atan':
+        return `Math.atan2(${a},${b})`
+      default:
+        return `Math.${ast.op}(${a},${b})`
     }
+  } else if (args.length === 1) {
+    const [a] = args
+    if (ast.op === '-@') return `(-${a})`
+    return `Math.${ast.op}(${a})`
   } else {
-    if (ast.op === '-@') return `minusV(${a})`
-    return `${ast.op}V(${a})`
+    return `Math.${ast.op}(${args.join(',')})`
   }
 }
 
@@ -152,7 +130,7 @@ function astToRangeVarNameCode(
     if (normalVariables.has(varname)) return
     const expander = specialVariables[varname]
     if (!expander) throw `Unknown variable ${varname}`
-    const [names, code] = expander(args['x'], args['y'], namer)
+    const [names, code] = expander([args['x'], args['y']], namer)
     codes.push(code)
     specialArgs[varname] = names as MinMaxVarName
   })
@@ -161,19 +139,20 @@ function astToRangeVarNameCode(
   return [result, codes.join(';')]
 }
 
-function astToRangeVarNameCodeRec(ast: ASTNode, args: Record<string, MinMaxVarName>, expanders: Record<string, Expander>, namer: NameGenerator): [MinMaxVarName | number, string] {
+function astToRangeVarNameCodeRec(ast: ASTNode, argMap: Record<string, MinMaxVarName>, expanders: Record<string, Expander>, namer: NameGenerator): [MinMaxVarName | number, string] {
   if (typeof ast === 'number') return [ast, '']
   if (typeof ast === 'string') {
-    const varname = args[ast]
+    const varname = argMap[ast]
     if (!varname) throw new Error(`Unknown constant or variable: ${ast}`)
     return [varname, '']
   }
-  const [a, acode] = astToRangeVarNameCodeRec(ast.a, args, expanders, namer)
-  const [b, bcode] = 'b' in ast ? astToRangeVarNameCodeRec(ast.b, args, expanders, namer) : [0, '']
+  const argCodes = ast.args.map(arg => astToRangeVarNameCodeRec(arg, argMap, expanders, namer))
+  const codes = argCodes.map(a => a[1])
+  const args = argCodes.map(a => a[0])
   const expander = expanders[ast.op]
   if (!expander) throw new Error(`Expander undefined for: ${ast.op}`)
-  const [c, ccode] = expander(a, b, namer)
-  return [c, acode + ';' + bcode + ';' + ccode]
+  const [c, ccode] = expander(args, namer)
+  return [c, codes.join(';') + ';' + ccode]
 }
 
 export function astToRangeFunction(ast: ASTNode, option: { pos?: boolean; neg?: boolean }, constants: Record<string, number> = mathConstants): (xmin: number, xmax: number, ymin: number, ymax: number) => RangeResult {
