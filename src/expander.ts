@@ -14,8 +14,11 @@ export const results = { NEG, POS, BOTH, HASGAP, HASNAN, NAN, ZERO }
 export const GAPMARK = '/*GAP*/'
 export const NANMARK = '/*NAN*/'
 
+function raiseArgNumError(name: string) {
+  throw `Wrong number of arguments: ${name}`
+}
 function assertArgNum(name: string, args: any[], n: number) {
-  if (args.length !== n) throw `Wrong number of arguments: ${name}`
+  if (args.length !== n) raiseArgNumError(name)
 }
 
 const add: Expander = ([a, b], namer) => {
@@ -268,6 +271,7 @@ const cos: Expander = (args, namer) => {
   return sincos(a, 'cos', namer)
 }
 
+// TODO: use Math.tan, not div(sin,cos)
 const tan: Expander = (args, namer) => {
   assertArgNum('tan', args, 1)
   const [a] = args
@@ -340,6 +344,31 @@ const atan2: Expander = (args, namer) => {
   return [[minvar, maxvar], code]
 }
 
+function numberOrMin(args: (number | MinMaxVarName)[]) {
+  return args.map(a => typeof a === 'number' ? a : a[0])
+}
+function numberOrMax(args: (number | MinMaxVarName)[]) {
+  return args.map(a => typeof a === 'number' ? a : a[1])
+}
+
+const min: Expander = (args, namer) => {
+  if (args.length === 0) raiseArgNumError('min')
+  const minvar = namer()
+  const maxvar = namer()
+  const mincode = `const ${minvar}=Math.min(${numberOrMin(args).join(', ')})`
+  const maxcode = `const ${maxvar}=Math.min(${numberOrMax(args).join(', ')})`
+  return [[minvar, maxvar], mincode + ';' + maxcode]
+}
+
+const max: Expander = (args, namer) => {
+  if (args.length === 0) raiseArgNumError('min')
+  const minvar = namer()
+  const maxvar = namer()
+  const mincode = `const ${minvar}=Math.max(${numberOrMin(args).join(', ')})`
+  const maxcode = `const ${maxvar}=Math.max(${numberOrMax(args).join(', ')})`
+  return [[minvar, maxvar], mincode + ';' + maxcode]
+}
+
 const abs: Expander = (args, namer) => {
   assertArgNum('abs', args, 1)
   const [a] = args
@@ -386,7 +415,9 @@ export const expanders = {
   hypot,
   atan2,
   pow,
-  abs
+  abs,
+  min,
+  max
 }
 
 export const specialVariables: Record<string, Expander> = {

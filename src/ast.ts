@@ -48,7 +48,7 @@ export function compactAST(ast: ASTNode, constants: Record<string, number>): AST
         case 'atan2': return Math.atan2(a, b)
         case 'pow': return Math.pow(a, b)
       }
-    } else {
+    } else if (args.length === 1) {
       const [a] = args
       switch (ast.op) {
         case '-@': return -a
@@ -68,6 +68,11 @@ export function compactAST(ast: ASTNode, constants: Record<string, number>): AST
         case 'acosh': return Math.acosh(a)
         case 'atanh': return Math.atanh(a)
         case 'abs': return Math.abs(a)
+      }
+    } else if (args.length !== 0) {
+      switch (ast.op) {
+        case 'min': return Math.min(...args)
+        case 'max': return Math.max(...args)
       }
     }
   }
@@ -112,7 +117,6 @@ export function astToFunction(ast: ASTNode, constants: Record<string, number> = 
   if (variables.includes('r')) codes.unshift('const r=Math.hypot(x,y);')
   const retval = astToCode(compactAST(ast, constants), args)
   const code = codes.length === 0 ? retval : `{${codes.join('')}return ${retval}}`
-  console.log(`(x, y) => ${code}`)
   return eval(`(x, y) => ${code}`)
 }
 
