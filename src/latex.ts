@@ -1,4 +1,5 @@
 export function convertLatex(s: string) {
+  s = s.replaceAll(/\\operatorname\{[a-zA-Z0-9]+\}/g, a => a.substring(14, a.length - 1))
   const block = parse1(s)
   return convert(block)
 }

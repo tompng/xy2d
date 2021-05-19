@@ -12,6 +12,15 @@ document.head.appendChild(style)
 require('mathquill/build/mathquill.js')
 const MQ = (window as any).MathQuill.getInterface(2)
 ;(window as any).MQ = MQ
+const autoOperatorNames = (() => {
+  const names = ['sqrt', 'exp', 'log', 'hypot', 'abs', 'min', 'max', 'pow']
+  for (const base of ['sin', 'cos', 'tan']) {
+    for (const prefix of ['a', 'arc', '']) {
+      names.push(prefix + base, prefix + base + 'h')
+    }
+  }
+  return names.join(' ')
+})()
 setTimeout(() => {
   const el = document.querySelector<HTMLDivElement>('#mqinput')!
   el.style.color = 'black'
@@ -25,6 +34,8 @@ setTimeout(() => {
         }
       }
     },
+    autoCommands: 'pi theta sqrt',
+    autoOperatorNames,
     restrictMismatchedBrackets: true
   })
   ;(window as any).mathField = mathField
