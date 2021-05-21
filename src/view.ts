@@ -69,31 +69,30 @@ export class Panel {
     const pointResults = solver.pointResults
     const areaPointResult = solver.areaPointResult
     const palette = [colors.zero, colors.neg, colors.pos, colors.nan]
-    for (let i = 0; i < areaResults.length;) {
-      const x = areaResults[i++]
-      const y = areaResults[i++]
-      const size = areaResults[i++]
-      const result = areaResults[i++]
-      const color = palette[result]
-      if (color) {
-        bgCtx.fillStyle = color
+    for (let c = 0; c < 4; c++){
+      const color = palette[c]
+      if (!color) continue
+      bgCtx.fillStyle = color
+      for (let i = 0; i < areaResults.length;) {
+        const x = areaResults[i++]
+        const y = areaResults[i++]
+        const size = areaResults[i++]
+        const result = areaResults[i++]
+        if (result !== c) continue
         bgCtx.globalAlpha = 0.5+0.5*Math.random()
         bgCtx.fillRect(resolution * x , resolution - resolution * (y + size), resolution * size, resolution * size)
-        bgCtx.globalAlpha = 1
       }
-    }
-    for (let i = 0; i < areaPointResult.length;) {
-      const x = areaPointResult[i++]
-      const y = areaPointResult[i++]
-      const c = areaPointResult[i++]
-      let len = 1
-      while(areaPointResult[i] === x + len && areaPointResult[i + 1] === y && areaPointResult[i + 2] === c) {
-        i += 3
-        len += 1
-      }
-      const color = palette[c]
-      if (color) {
-        bgCtx.fillStyle = color
+      bgCtx.globalAlpha = 1
+      for (let i = 0; i < areaPointResult.length;) {
+        const x = areaPointResult[i++]
+        const y = areaPointResult[i++]
+        const r = areaPointResult[i++]
+        if (r !== c) continue
+        let len = 1
+        while(areaPointResult[i] === x + len && areaPointResult[i + 1] === y && areaPointResult[i + 2] === c) {
+          i += 3
+          len += 1
+        }
         bgCtx.fillRect(x, resolution - y - 1, len, 1)
       }
     }
