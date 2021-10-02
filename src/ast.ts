@@ -1,7 +1,9 @@
 import { expanders, specialVariables, results, GAPMARK, NANMARK, Expander, MinMaxVarName, NameGenerator, RangeResult } from "./expander"
 
 export type RangeFunction = (xmin: number, xmax: number, ymin: number, ymax: number) => RangeResult
+export type RangeFunction3D = (xmin: number, xmax: number, ymin: number, ymax: number, zmin: number, zmax: number) => RangeResult
 export type ValueFunction = (x: number, y: number) => number
+export type ValueFunction3D = (x: number, y: number, z: number) => number
 export type ASTNode = string | number | {
   op: string
   args: ASTNode[]
@@ -109,7 +111,7 @@ export function astToCode(ast: ASTNode, argNames: Set<string>): string {
   }
 }
 
-export function astToFunction(ast: ASTNode, constants: Record<string, number> = mathConstants): (x: number, y: number) => number {
+export function astToFunction(ast: ASTNode, constants: Record<string, number> = mathConstants): ValueFunction {
   const args = new Set(['x', 'y', 'r', 'theta'])
   const variables = extractVariables(ast)
   const codes: string[] = []
@@ -120,6 +122,18 @@ export function astToFunction(ast: ASTNode, constants: Record<string, number> = 
   return eval(`(x, y) => ${code}`)
 }
 
+export function astTo3DFunction(ast: ASTNode, constants: Record<string, number> = mathConstants): ValueFunction3D {
+  const args = new Set(['x', 'y', 'z', 'r', 'theta'])
+  const variables = extractVariables(ast)
+  const codes: string[] = []
+  if (variables.includes('theta')) codes.unshift('const theta=Math.atan2(y,x);')
+  if (variables.includes('r')) codes.unshift('const r=Math.hypot(x,y,z);')
+  const retval = astToCode(compactAST(ast, constants), args)
+  const code = codes.length === 0 ? retval : `{${codes.join('')}return ${retval}}`
+  return eval(`(x, y, z) => ${code}`)
+}
+
+
 function astToRangeVarNameCode(
   ast: ASTNode,
   args: Record<string, MinMaxVarName>,
@@ -127,14 +141,14 @@ function astToRangeVarNameCode(
   namer: NameGenerator
 ): [MinMaxVarName | number, string] {
   const variables = extractVariables(ast)
-  const normalVariables = new Set(['x', 'y'])
+  const normalVariables = new Set(Object.keys(args))
   const codes: string[] = []
   const specialArgs = { ...args }
   ;[...new Set(variables)].forEach(varname => {
     if (normalVariables.has(varname)) return
     const expander = specialVariables[varname]
     if (!expander) throw `Unknown variable ${varname}`
-    const [names, code] = expander([args['x'], args['y']], namer)
+    const [names, code] = expander(Object.values(args), namer)
     codes.push(code)
     specialArgs[varname] = names as MinMaxVarName
   })
@@ -159,7 +173,15 @@ function astToRangeVarNameCodeRec(ast: ASTNode, argMap: Record<string, MinMaxVar
   return [c, codes.join(';') + ';' + ccode]
 }
 
-export function astToRangeFunction(ast: ASTNode, option: { pos?: boolean; neg?: boolean }, constants: Record<string, number> = mathConstants): (xmin: number, xmax: number, ymin: number, ymax: number) => RangeResult {
+export function astToRangeFunction(ast: ASTNode, option: { pos?: boolean; neg?: boolean }, constants: Record<string, number> = mathConstants) {
+  return astToRangeFunctionBase(ast, { ...option, dim: 2 }, constants)
+}
+
+export function astTo3DRangeFunction(ast: ASTNode, option: { pos?: boolean; neg?: boolean }, constants: Record<string, number> = mathConstants) {
+  return astToRangeFunctionBase(ast, { ...option, dim: 3 }, constants)
+}
+
+export function astToRangeFunctionBase<DIM extends 2 | 3>(ast: ASTNode, option: { pos?: boolean; neg?: boolean, dim: DIM }, constants: Record<string, number> = mathConstants): DIM extends 2 ? RangeFunction : RangeFunction3D {
   let nameGeneratorIndex = 9
   const nameGenerator = () => {
     let n = nameGeneratorIndex++
@@ -172,14 +194,17 @@ export function astToRangeFunction(ast: ASTNode, option: { pos?: boolean; neg?: 
     }
     return name + suffix
   }
+  const args: Record<string, [string, string]> = option.dim == 2
+    ? { x: ['xmin', 'xmax'], y: ['ymin', 'ymax'] }
+    : { x: ['xmin', 'xmax'], y: ['ymin', 'ymax'], z: ['zmin', 'zmax'] }
   const [result, code] = astToRangeVarNameCode(
     compactAST(ast, constants),
-    { x: ['xmin', 'xmax'], y: ['ymin', 'ymax'] },
+    args,
     expanders,
     nameGenerator
   )
   const epsilon = 1e-15
-  const argsPart = '(xmin,xmax,ymin,ymax)'
+  const argsPart = option.dim == 2 ? '(xmin,xmax,ymin,ymax)' : '(xmin,xmax,ymin,ymax,zmin,zmax)'
   if (typeof result === 'number') {
     const val = isNaN(result) ? results.NAN : result < -epsilon ? results.NEG : result > epsilon ? results.POS : results.ZERO
     return eval(`${argsPart}=>${val}`)
