@@ -357,5 +357,4 @@ export class View {
       ctx.fillText(label, x, y)
     }
   }
-
 }

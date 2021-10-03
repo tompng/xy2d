@@ -21,7 +21,7 @@ export function splitRanges(frange: RangeFunction3D, ranges: Range3D[]) {
   return output
 }
 const marchingCubePattern = generateMarchingCubeTable()
-;(window as any).marchingCubePattern = marchingCubePattern
+
 export function polygonize(fvalue: ValueFunction3D, ranges: Range3D[], segments: number) {
   const polygon: number[] = []
   const N = segments + 1

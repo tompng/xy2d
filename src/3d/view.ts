@@ -1,6 +1,5 @@
 import * as THREE from 'three'
 
-
 const vertexShader = `
 varying vec3 vNormal;
 void main() {
@@ -22,29 +21,6 @@ const material = new THREE.ShaderMaterial({
   fragmentShader,
   side: THREE.DoubleSide
 })
-
-export function generateGeometry(positions: number[]) {
-  const geometry = new THREE.BufferGeometry()
-  const normals = new Float32Array(positions.length)
-  for (let i = 0; i < positions.length; i += 9) {
-    const x1 = positions[i + 3] - positions[i]
-    const y1 = positions[i + 4] - positions[i + 1]
-    const z1 = positions[i + 5] - positions[i + 2]
-    const x2 = positions[i + 6] - positions[i]
-    const y2 = positions[i + 7] - positions[i + 1]
-    const z2 = positions[i + 8] - positions[i + 2]
-    const nx = y1 * z2 - y2 * z1
-    const ny = z1 * x2 - z2 * x1
-    const nz = x1 * y2 - x2 * y1
-    const nr = Math.hypot(nx, ny, nz)
-    normals[i] = normals[i + 3] = normals[i + 6] = nx / nr
-    normals[i + 1] = normals[i + 4] = normals[i + 7] = ny / nr
-    normals[i + 2] = normals[i + 5] = normals[i + 8] = nz / nr
-  }
-  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3))
-  geometry.setAttribute('normal', new THREE.BufferAttribute(normals, 3))
-  return geometry
-}
 
 export function generateMesh(geometry: THREE.BufferGeometry) {
   return new THREE.Mesh(geometry, material)
@@ -77,11 +53,14 @@ export class View {
   bind() {
     const { domElement: dom } = this.renderer
     let pointer: { id: number; x: number; y: number } | null = null
-    dom.onpointerdown = e => {
+    dom.addEventListener('touchstart', e => e.preventDefault())
+    dom.addEventListener('pointerdown', e => {
+      e.preventDefault()
       pointer = { id: e.pointerId, x: e.pageX, y: e.pageY }
-    }
-    dom.onpointermove = e => {
+    })
+    document.addEventListener('pointermove', e => {
       if (pointer?.id !== e.pointerId) return
+      e.preventDefault()
       const dx = (e.pageX - pointer.x) / dom.offsetWidth * 4
       const dy = (e.pageY - pointer.y) / dom.offsetWidth * 4
       pointer.x = e.pageX
@@ -89,11 +68,10 @@ export class View {
       this.xyTheta -= dx
       this.zTheta = Math.min(Math.max(-Math.PI / 2, this.zTheta + dy), Math.PI / 2)
       this.needsRender = true
-    }
-    dom.onpointerup = e => {
+    })
+    document.addEventListener('pointerup', e => {
       pointer = null
-    }
-
+    })
   }
   render() {
     const { camera, renderer, scene, xyTheta, zTheta, width, height, rendered } = this
