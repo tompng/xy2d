@@ -1,4 +1,4 @@
-import { astTo3DFunction, astTo3DRangeFunction } from '../ast'
+import { ASTNode, astTo3DFunction, astTo3DRangeFunction } from '../ast'
 import { parse } from '../parser'
 import { Range3D, splitRanges, polygonize } from './polygonizer'
 import { View, generateGeometry, generateMesh } from './view'
@@ -16,10 +16,12 @@ document.body.appendChild(view.renderer.domElement)
 
 const errorDOM = document.querySelector<HTMLDivElement>('#error')!
 const input = document.querySelector<HTMLInputElement>('#mathinput')!
-async function update() {
+function update() {
   const exp = input.value
+  errorDOM.textContent = ''
   try {
-    await calc(exp)
+    const [ast] = parse(exp)
+    calc(ast)
   } catch (e) {
     errorDOM.textContent = String(e)
   }
@@ -31,8 +33,7 @@ input.oninput = () => {
 update()
 
 let geometry: BufferGeometry | null = null
-async function calc(exp: string) {
-  let [ast, mode] = parse(exp)
+async function calc(ast: ASTNode) {
   const frange = astTo3DRangeFunction(ast, { pos: false, neg: false })
   const fvalue = astTo3DFunction(ast)
   let ranges: Range3D[] = [[-1,1,-1,1,-1,1]]
