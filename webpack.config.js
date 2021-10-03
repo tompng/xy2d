@@ -1,9 +1,12 @@
 module.exports = {
   mode: 'development',
-  entry: './src/index.ts',
+  entry: {
+    index: './src/index.ts',
+    index3d: './src/3d/index.ts'
+  },
   output: {
     path: `${__dirname}/dist`,
-    filename: 'index.js'
+    filename: '[name].js'
   },
   module: {
     rules: [
