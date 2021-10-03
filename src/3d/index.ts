@@ -26,27 +26,38 @@ function test() {
     if (levels.length > 100000) break
   }
 }
-// test()
 
 onload = polygonizeTest
-function polygonizeTest() {
-  const ranges: Range3D[] = [[-1,1,-1,1,-1,1]]
-  const polygons = polygonize((x,y,z)=>x*x+y*y+(z-1)**2-0.9, ranges, 20)
-  
+function sleep(millisec: number) {
+  return new Promise(r => setTimeout(r, millisec))
+}
+async function polygonizeTest() {
+  const exp = 'sin(5xy+1)+sin(5yz+2)+sin(5zx+3)-1/2=0'
+  let [ast, mode] = parse(exp)
+  const frange = astTo3DRangeFunction(ast, { pos: false, neg: false })
+  const fvalue = astTo3DFunction(ast)
+  let ranges: Range3D[] = [[-1,1,-1,1,-1,1]]
+
   const canvas = document.createElement('canvas')
   const ctx = canvas.getContext('2d')!
   document.body.appendChild(canvas)
   canvas.width = 512
   canvas.height = 512
-  ctx.lineWidth = 0.1
-  for (let i = 0; i < polygons.length; i += 9) {
-    const [x1, y1, z1, x2, y2, z2, x3, y3, z3] = polygons.slice(i, i + 9)
+  function render(polygons: number[]) {
+    ctx.clearRect(0, 0, 512, 512)
+    ctx.lineWidth = 0.1
     ctx.beginPath()
-    ctx.moveTo(256 + 128 * x1, 256 + 128 * y1)
-    ctx.lineTo(256 + 128 * x2, 256 + 128 * y2)
-    ctx.lineTo(256 + 128 * x3, 256 + 128 * y3)
+    for (let i = 0; i < polygons.length; i += 9) {
+      const [x1, y1, z1, x2, y2, z2, x3, y3, z3] = polygons.slice(i, i + 9)
+      ctx.moveTo(256 + 256 * x1, 256 + 256 * y1)
+      ctx.lineTo(256 + 256 * x2, 256 + 256 * y2)
+      ctx.lineTo(256 + 256 * x3, 256 + 256 * y3)
+    }
     ctx.stroke()
-    ctx.beginPath()
-    ctx.fill()
+  }
+  for (let i = 0; i < 6; i++) {
+    ranges = splitRanges(frange, ranges)
+    render(polygonize(fvalue, ranges, 4))
+    await sleep(10)
   }
 }
