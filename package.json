@@ -12,6 +12,8 @@
   },
   "private": true,
   "dependencies": {
-    "mathquill": "*"
+    "mathquill": "*",
+    "three": "*",
+    "@types/three": "*"
   }
 }
