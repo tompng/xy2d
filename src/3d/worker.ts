@@ -31,7 +31,7 @@ async function start(input: WorkerInput) {
       complete: false
     }
     if (res >= 256 || ranges.length > 20000) data.complete = true
-    postMessage(data)
+    ;(postMessage as (data: WorkerOutput) => void)(data)
     if (data.complete) break
   }
 }
