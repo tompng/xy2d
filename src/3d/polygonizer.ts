@@ -88,17 +88,23 @@ export function polygonize(fvalue: ValueFunction3D, ranges: Range3D[], segments:
             const i1 = coords[i] * 3
             const i2 = coords[i + 1] * 3
             const i3 = coords[i + 2] * 3
-            polygon.push(
-              x + (edgeCoords[i1] * xscale) || 0,
-              y + (edgeCoords[i1 + 1] * yscale) || 0,
-              z + (edgeCoords[i1 + 2] * zscale) || 0,
-              x + (edgeCoords[i2] * xscale) || 0,
-              y + (edgeCoords[i2 + 1] * yscale) || 0,
-              z + (edgeCoords[i2 + 2] * zscale) || 0,
-              x + (edgeCoords[i3] * xscale) || 0,
-              y + (edgeCoords[i3 + 1] * yscale) || 0,
-              z + (edgeCoords[i3 + 2] * zscale) || 0,
-            )
+            if (!isNaN(
+              edgeCoords[i1] + edgeCoords[i1 + 1] + edgeCoords[i1 + 2] +
+              edgeCoords[i2] + edgeCoords[i2 + 1] + edgeCoords[i2 + 2] +
+              edgeCoords[i3] + edgeCoords[i3 + 1] + edgeCoords[i3 + 2]
+            )) {
+              polygon.push(
+                x + (edgeCoords[i1] * xscale) || 0,
+                y + (edgeCoords[i1 + 1] * yscale) || 0,
+                z + (edgeCoords[i1 + 2] * zscale) || 0,
+                x + (edgeCoords[i2] * xscale) || 0,
+                y + (edgeCoords[i2 + 1] * yscale) || 0,
+                z + (edgeCoords[i2 + 2] * zscale) || 0,
+                x + (edgeCoords[i3] * xscale) || 0,
+                y + (edgeCoords[i3 + 1] * yscale) || 0,
+                z + (edgeCoords[i3 + 2] * zscale) || 0,
+              )
+            }
           }
         }
       }
