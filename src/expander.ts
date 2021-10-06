@@ -283,14 +283,26 @@ const tan: Expander = (args, namer) => {
 }
 
 const hypot: Expander = (args, namer) => {
-  assertArgNum('hypot', args, 2)
-  const [a, b] = args
-  if (typeof a === 'number') return [Math.tan(a), '']
-  const [avar, acode] = pow2(a, namer)
-  const [bvar, bcode] = pow2(b, namer)
-  const [svar, scode] = add([avar, bvar], namer)
-  const [rvar, rcode] = sqrt([svar], namer)
-  return [rvar, [acode, bcode, scode, rcode].join(';')]
+  if (args.length !== 2 && args.length !== 3) raiseArgNumError('hypot')
+  const nums = args.filter(a => typeof a === 'number') as number[]
+  if (nums.length === args.length) return [Math.hypot(...nums), '']
+  if (args.length === 2) {
+    const [a, b] = args
+    const [avar, acode] = pow2(a, namer)
+    const [bvar, bcode] = pow2(b, namer)
+    const [svar, scode] = add([avar, bvar], namer)
+    const [rvar, rcode] = sqrt([svar], namer)
+    return [rvar, [acode, bcode, scode, rcode].join(';')]
+  } else {
+    const [a, b, c] = args
+    const [avar, acode] = pow2(a, namer)
+    const [bvar, bcode] = pow2(b, namer)
+    const [cvar, ccode] = pow2(c, namer)
+    const [s2var, s2code] = add([avar, bvar], namer)
+    const [s3var, s3code] = add([s2var, cvar], namer)
+    const [rvar, rcode] = sqrt([s3var], namer)
+    return [rvar, [acode, bcode, ccode, s2code, s3code, rcode].join(';')]
+  }
 }
 
 const atan2: Expander = (args, namer) => {
