@@ -58,35 +58,56 @@ export class View {
   }
   bind() {
     const { domElement: dom } = this.renderer
-    let pointer: { id: number; x: number; y: number } | null = null
-    dom.addEventListener('touchstart', e => e.preventDefault())
-    dom.addEventListener('pointerdown', e => {
-      e.preventDefault()
-      pointer = { id: e.pointerId, x: e.pageX, y: e.pageY }
-    })
-    document.addEventListener('pointermove', e => {
-      if (pointer?.id !== e.pointerId) return
-      e.preventDefault()
-      const dx = (e.pageX - pointer.x) / dom.offsetWidth * 4
-      const dy = (e.pageY - pointer.y) / dom.offsetWidth * 4
-      pointer.x = e.pageX
-      pointer.y = e.pageY
-      this.xyTheta -= dx
-      this.zTheta = Math.min(Math.max(-Math.PI / 2, this.zTheta + dy), Math.PI / 2)
-      this.needsRender = true
-    })
-    document.addEventListener('pointerup', e => {
-      pointer = null
-    })
+    let pointers: { id: number; x: number; y: number }[] = []
     let timer: NodeJS.Timer | null = null
-    dom.addEventListener('wheel', e => {
-      e.preventDefault()
-      this.zoomRadius = clamp(this.zoomRadius * Math.exp(e.deltaY / 100), zoomMinRadius, zoomMaxRadius)
+    const lazyChangeZoom = (radius: number) => {
+      this.zoomRadius = clamp(radius, zoomMinRadius, zoomMaxRadius)
       if (timer) clearTimeout(timer)
       timer = setTimeout(() => {
         timer = null
         this.triggerZoom()
       }, 100)
+    }
+    dom.addEventListener('touchstart', e => e.preventDefault())
+    dom.addEventListener('pointerdown', e => {
+      e.preventDefault()
+      pointers.push({ id: e.pointerId, x: e.pageX, y: e.pageY })
+      if (pointers.length >= 3) pointers.shift()
+      if (document.activeElement !== document.body) (document.activeElement as { blur?: () => void } | null)?.blur?.()
+    })
+    document.addEventListener('pointermove', e => {
+      e.preventDefault()
+      const pointer = pointers.find(p => p.id === e.pointerId)
+      if (!pointer) return
+      const dx = (e.pageX - pointer.x) / dom.offsetWidth * 4
+      const dy = (e.pageY - pointer.y) / dom.offsetWidth * 4
+      const center = { x: 0, y: 0 }
+      if (pointers.length === 1) {
+        this.xyTheta -= dx
+        this.zTheta = Math.min(Math.max(-Math.PI / 2, this.zTheta + dy), Math.PI / 2)
+        this.needsRender = true
+      } else {
+        for (const { x, y } of pointers) {
+          center.x += x / pointers.length
+          center.y += y / pointers.length
+        }
+        const lx = center.x - pointer.x
+        const ly = center.y - pointer.y
+        const lr = Math.hypot(lx, ly)
+        const dot = (lx * dx + ly * dy) / lr
+        lazyChangeZoom(this.zoomRadius * Math.exp(dot))
+      }
+      pointer.x = e.pageX
+      pointer.y = e.pageY
+    })
+    function touchend(e: PointerEvent) {
+      pointers = pointers.filter(p => p.id !== e.pointerId)
+    }
+    document.addEventListener('pointercancel', touchend)
+    document.addEventListener('pointerup', touchend)
+    dom.addEventListener('wheel', e => {
+      e.preventDefault()
+      lazyChangeZoom(this.zoomRadius * Math.exp(e.deltaY / 100))
     })
     document.body.addEventListener('keydown', e => {
       if (e.target !== document.body) return
