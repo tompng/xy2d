@@ -58,10 +58,10 @@ export function polygonize(fvalue: ValueFunction3D, ranges: Range3D[], segments:
           const v101 = lnext[idx + N]
           const v011 = lnext[idx + 1]
           const v111 = lnext[idx + N + 1]
-          const bit = (v000 >= 0 ? 1 : 0) |
-                      (v100 >= 0 ? 2 : 0) |
-                      (v010 >= 0 ? 4 : 0) |
-                      (v110 >= 0 ? 8 : 0) |
+          const bit = (v000 > 0 ? 1 : 0) |
+                      (v100 > 0 ? 2 : 0) |
+                      (v010 > 0 ? 4 : 0) |
+                      (v110 > 0 ? 8 : 0) |
                       (v001 > 0 ? 16 : 0) |
                       (v101 > 0 ? 32 : 0) |
                       (v011 > 0 ? 64 : 0) |
