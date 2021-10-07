@@ -6,7 +6,7 @@ import type { WorkerInput, WorkerOutput } from './worker'
 import * as THREE from 'three'
 
 let worker: Worker | null = null
-function calc(exp: string) {
+function calc(exp: string, radius: number) {
   statusDOM.textContent = ''
   worker?.terminate()
   worker = new Worker('./dist/worker3d.js')
@@ -14,7 +14,8 @@ function calc(exp: string) {
   const frange = astTo3DRangeFunction(ast, { pos: false, neg: false })
   const fvalue = astTo3DFunction(ast)
   statusDOM.textContent = '...'
-  worker.postMessage({ frange: frange.toString(), fvalue: fvalue.toString() } as WorkerInput)
+  const inputData: WorkerInput = { frange: frange.toString(), fvalue: fvalue.toString(), radius }
+  worker.postMessage(inputData)
   worker.addEventListener('message', e => {
     const { positions, normals, resolution, complete } = e.data as WorkerOutput
     console.log(resolution, complete, positions.length)
@@ -29,6 +30,7 @@ function calc(exp: string) {
 
 const view = new View()
 view.setSize(800, 600)
+view.onZoomChange = update
 document.body.appendChild(view.renderer.domElement)
 
 const errorDOM = document.querySelector<HTMLDivElement>('#error')!
@@ -38,7 +40,7 @@ function update() {
   const exp = input.value
   errorDOM.textContent = ''
   try {
-    calc(exp)
+    calc(exp, view.zoomRadius)
   } catch (e) {
     errorDOM.textContent = String(e)
   }

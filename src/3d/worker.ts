@@ -3,6 +3,7 @@ import { Range3D, splitRanges, polygonize } from './polygonizer'
 export type WorkerInput = {
   fvalue: string
   frange: string
+  radius: number
 }
 export type WorkerOutput = {
   positions: Float32Array
@@ -17,7 +18,8 @@ addEventListener('message', e => {
 async function start(input: WorkerInput) {
   const frange = eval(input.frange) as RangeFunction3D
   const fvalue = eval(input.fvalue) as ValueFunction3D
-  let ranges: Range3D[] = [[-1,1,-1,1,-1,1]]
+  const { radius } = input
+  let ranges: Range3D[] = [[-radius, radius, -radius, radius, -radius, radius]]
   let res = 1
   while (true) {
     ranges = splitRanges(frange, ranges)

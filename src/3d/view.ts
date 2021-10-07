@@ -25,18 +25,24 @@ const material = new THREE.ShaderMaterial({
 export function generateMesh(geometry: THREE.BufferGeometry) {
   return new THREE.Mesh(geometry, material)
 }
-
-
+const zoomMaxRadius = 256
+const zoomMinRadius = 1 / 64
+function clamp(value: number, min: number, max: number) {
+  return value < min ? min : value > max ? max : value
+}
+const defaultRadius = 1
 export class View {
   renderer = new THREE.WebGLRenderer()
-  camera = new THREE.Camera()
   scene = new THREE.Scene()
   xyTheta = 0
   zTheta = 0
   needsRender = true
-  rendered = { pixelRatio: 0, width: 0, height: 0 }
+  rendered = { pixelRatio: 0, width: 0, height: 0, radius: defaultRadius }
   width = 0
   height = 0
+  renderRadius = defaultRadius
+  zoomRadius = defaultRadius
+  onZoomChange?: (zoom: number) => void
   constructor() {
     this.bind()
     const animate = () => {
@@ -72,21 +78,47 @@ export class View {
     document.addEventListener('pointerup', e => {
       pointer = null
     })
+    let timer: NodeJS.Timer | null = null
+    dom.addEventListener('wheel', e => {
+      e.preventDefault()
+      this.zoomRadius = clamp(this.zoomRadius * Math.exp(e.deltaY / 100), zoomMinRadius, zoomMaxRadius)
+      if (timer) clearTimeout(timer)
+      timer = setTimeout(() => {
+        timer = null
+        this.triggerZoom()
+      }, 100)
+    })
+    document.body.addEventListener('keydown', e => {
+      if (e.target !== document.body) return
+      if (e.key === '-') this.changeZoom(this.zoomRadius * 1.5)
+      if (e.key === '+') this.changeZoom(this.zoomRadius / 1.5)
+      if (e.key === '=' || e.key === '0') this.changeZoom(defaultRadius)
+    })
+  }
+  changeZoom(zoom: number) {
+    this.zoomRadius = clamp(zoom, zoomMinRadius, zoomMaxRadius)
+    this.triggerZoom()
+  }
+  triggerZoom() {
+    if (this.renderRadius === this.zoomRadius) return
+    this.renderRadius = this.zoomRadius
+    this.onZoomChange?.(this.renderRadius)
   }
   render() {
-    const { camera, renderer, scene, xyTheta, zTheta, width, height, rendered } = this
-    if (rendered.width !== width || rendered.height !== height || rendered.pixelRatio !== devicePixelRatio) {
+    const { renderer, scene, xyTheta, zTheta, width, height, zoomRadius, rendered } = this
+    if (rendered.width !== width || rendered.height !== height || rendered.pixelRatio !== devicePixelRatio || rendered.radius !== zoomRadius) {
       renderer.setPixelRatio(devicePixelRatio)
       renderer.setSize(width, height)
-      this.camera = new THREE.PerspectiveCamera(50, width / height, 0.2, 10)
       rendered.width = width
       rendered.height = height
       rendered.pixelRatio = devicePixelRatio
+      rendered.radius = zoomRadius
       this.needsRender = true
     }
     if (!this.needsRender) return
     this.needsRender = false
-    const distance = 3.5
+    const distance = 3.5 * zoomRadius
+    const camera = new THREE.PerspectiveCamera(50, width / height, distance / 2, distance * 2)
     const sz = Math.sin(zTheta)
     const cz = Math.cos(zTheta)
     camera.position.set(
