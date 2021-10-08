@@ -32,7 +32,7 @@ function clamp(value: number, min: number, max: number) {
 }
 const defaultRadius = 1
 export class View {
-  renderer = new THREE.WebGLRenderer()
+  renderer = new THREE.WebGLRenderer({ antialias: devicePixelRatio <= 1 })
   scene = new THREE.Scene()
   xyTheta = 0
   zTheta = 0
