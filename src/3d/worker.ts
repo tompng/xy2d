@@ -9,10 +9,16 @@ export type WorkerOutput = {
   positions: Float32Array
   normals: Float32Array
   resolution: number
-  complete: boolean
+  complete: false
+} | { complete: true }
+
+function sendOutput(message: WorkerOutput) {
+  postMessage(message)
 }
+
 addEventListener('message', e => {
   start(e.data as WorkerInput)
+  sendOutput({ complete: true })
 })
 
 async function start(input: WorkerInput) {
@@ -21,21 +27,35 @@ async function start(input: WorkerInput) {
   const { radius } = input
   let ranges: Range3D[] = [[-radius, radius, -radius, radius, -radius, radius]]
   let res = 1
+  let numPolygons = 1
+  const preferredRanges = 65536
+  const maxPolygons = 800000
+  const maxResolution = 1024
   while (true) {
     ranges = splitRanges(frange, ranges)
     res *= 2
     const positions = new Float32Array(polygonize(fvalue, ranges, 4))
     const normals = generateNormals(positions)
-    const data: WorkerOutput = {
-      normals,
-      positions,
-      resolution: res * 4,
-      complete: false
-    }
-    if (res >= 256 || ranges.length > 20000) data.complete = true
-    ;(postMessage as (data: WorkerOutput) => void)(data)
-    if (data.complete) break
+    sendOutput({ normals, positions, resolution: res * 4, complete: false })
+    numPolygons = positions.length / 9
+    if (res * 4 >= maxResolution) return
+    if (numPolygons * 4 > maxPolygons || ranges.length > preferredRanges) break
   }
+  let N: number
+  if (ranges.length < preferredRanges && numPolygons * (3 / 2) ** 2 < maxPolygons) {
+    ranges = splitRanges(frange, ranges)
+    res *= 2
+    N = 3
+  } else if (numPolygons * (5 / 4) ** 2 < maxPolygons) {
+    N = 5
+  } else {
+    return
+  }
+  const positions = new Float32Array(polygonize(fvalue, ranges, N))
+  numPolygons = positions.length / 9
+  if (numPolygons > maxPolygons * 1.5) return
+  const normals = generateNormals(positions)
+  sendOutput({ positions, normals, resolution: res * N, complete: false })
 }
 
 function generateNormals(positions: Float32Array) {

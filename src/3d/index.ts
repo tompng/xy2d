@@ -16,13 +16,18 @@ function calc(exp: string, radius: number) {
   statusDOM.textContent = '...'
   const inputData: WorkerInput = { frange: frange.toString(), fvalue: fvalue.toString(), radius }
   worker.postMessage(inputData)
-  worker.addEventListener('message', e => {
-    const { positions, normals, resolution, complete } = e.data as WorkerOutput
-    console.log(resolution, complete, positions.length)
+  worker.addEventListener('message', (e: MessageEvent<WorkerOutput>) => {
+    const { data } = e
+    if (data.complete) {
+      statusDOM.innerHTML = statusDOM.innerHTML.replace('...', 'complete')
+      return
+    }
+    const { positions, normals, resolution } = data
+    console.log(resolution, positions.length / 9)
     const geometry = new THREE.BufferGeometry()
     geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3))
     geometry.setAttribute('normal', new THREE.BufferAttribute(normals, 3))
-    statusDOM.innerHTML = `${resolution}&times;${resolution}&times;${resolution} ${complete ? 'complete' : '...'}`
+    statusDOM.innerHTML = `${resolution}&times;${resolution}&times;${resolution} ...`
     setGeometry(geometry)
   })
 }
