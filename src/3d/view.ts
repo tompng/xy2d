@@ -138,8 +138,10 @@ export class View {
     }
     if (!this.needsRender) return
     this.needsRender = false
-    const distance = 3.5 * zoomRadius
-    const camera = new THREE.PerspectiveCamera(50, width / height, distance / 2, distance * 2)
+    const distance = 3 * zoomRadius
+    const fov = 50
+    const verticalFOV = width > height ? fov : Math.atan(Math.tan(fov * Math.PI / 180 / 2) * height / width) * 360 / Math.PI
+    const camera = new THREE.PerspectiveCamera(verticalFOV, width / height, distance / 2, distance * 2)
     const sz = Math.sin(zTheta)
     const cz = Math.cos(zTheta)
     camera.position.set(

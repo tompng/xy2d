@@ -1,20 +1,41 @@
 <meta charset='utf-8'>
+<meta name='viewport' content='width=device-width,user-scalable=no,initial-scale=1.0,maximum-scale=1.0,minimum-scale=1.0'>
 <style>
 #mathinput {
-  font-size: 16px;
-  line-height: 32px;
-  width: 800px;
+  font-size: 20px;
+  line-height: 36px;
+  height: 48px;
+  display: block;
+  width: 100%;
 }
 #error {
   color: red;
 }
 #status {
-  font-size: 12px;
-  height: 16px;
   color: black;
 }
+.header {
+  position: fixed;
+  left: 8px;
+  top: 8px;
+  right: 8px;
+  height: 64px;
+}
+.header .message {
+  font-size: 12px;
+  height: 16px;
+}
+.view {
+  position: fixed;
+  left: 8px;
+  top: 72px;
+  right: 8px;
+  bottom: 8px;
+}
 </style>
+<div class='header'>
 <input type=text value="sin(5xy+1)+sin(5yz+2)+sin(5zx+3)-1/2=0" id="mathinput">
-<div id='error'></div>
-<div id='status'></div>
+<div class='message'><span id='error'></span><span id='status'></span></div>
+</div>
+<div class='view'></div>
 <script src='dist/index3d.js'></script>

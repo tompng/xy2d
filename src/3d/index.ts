@@ -36,10 +36,17 @@ function calc(exp: string, radius: number) {
 const view = new View()
 view.setSize(800, 600)
 view.onZoomChange = update
-document.body.appendChild(view.renderer.domElement)
+const viewDOM = document.querySelector<HTMLDivElement>('.view')!
+viewDOM.appendChild(view.renderer.domElement)
+function setSize() {
+  view.setSize(viewDOM.offsetWidth, viewDOM.offsetHeight)
+}
+setSize()
+window.addEventListener('resize', setSize)
+setInterval(setSize, 1000) // for resize event bug on iOS
 
-const errorDOM = document.querySelector<HTMLDivElement>('#error')!
-const statusDOM = document.querySelector<HTMLDivElement>('#status')!
+const errorDOM = document.querySelector<HTMLSpanElement>('#error')!
+const statusDOM = document.querySelector<HTMLSpanElement>('#status')!
 const input = document.querySelector<HTMLInputElement>('#mathinput')!
 function update() {
   const exp = input.value
