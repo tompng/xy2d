@@ -1,7 +1,6 @@
-import { ASTNode, astTo3DFunction, astTo3DRangeFunction } from '../ast'
+import { astTo3DFunction, astTo3DRangeFunction } from '../ast'
 import { parse } from '../parser'
 import { View, generateMesh } from './view'
-import type { BufferGeometry } from 'three'
 import type { WorkerInput, WorkerOutput } from './worker'
 import * as THREE from 'three'
 
@@ -61,13 +60,13 @@ input.onchange = update
 input.oninput = () => { errorDOM.textContent = '' }
 update()
 
-let geometry: BufferGeometry | null = null
-function setGeometry(g: BufferGeometry) {
+let geometry: THREE.BufferGeometry | null = null
+let mesh: THREE.Mesh | null = null
+function setGeometry(g: THREE.BufferGeometry) {
   geometry?.dispose()
   geometry = g
-  const mesh = generateMesh(geometry)
-  view.scene.clear()
-  view.scene.add(mesh)
+  if (mesh) view.scene.remove(mesh)
+  view.scene.add(mesh = generateMesh(geometry))
   view.needsRender = true
   view.render()
 }

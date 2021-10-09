@@ -43,12 +43,15 @@ export class View {
   renderRadius = defaultRadius
   zoomRadius = defaultRadius
   onZoomChange?: (zoom: number) => void
+  axisObjects: THREE.Object3D[] = []
   constructor() {
     this.bind()
     const animate = () => {
       this.render()
       requestAnimationFrame(animate)
     }
+    this.axisObjects.push(boundingCubeLineSegments(), axisLineSegments())
+    for (const obj of this.axisObjects) this.scene.add(obj)
     requestAnimationFrame(animate)
   }
   setSize(width: number, height: number) {
@@ -138,10 +141,13 @@ export class View {
     }
     if (!this.needsRender) return
     this.needsRender = false
+    for (const obj of this.axisObjects) {
+      obj.scale.set(this.zoomRadius, this.zoomRadius, this.zoomRadius)
+    }
     const distance = 3 * zoomRadius
     const fov = 50
     const verticalFOV = width > height ? fov : Math.atan(Math.tan(fov * Math.PI / 180 / 2) * height / width) * 360 / Math.PI
-    const camera = new THREE.PerspectiveCamera(verticalFOV, width / height, distance / 2, distance * 2)
+    const camera = new THREE.PerspectiveCamera(verticalFOV, width / height, distance / 64, distance * 2)
     const sz = Math.sin(zTheta)
     const cz = Math.cos(zTheta)
     camera.position.set(
@@ -153,4 +159,58 @@ export class View {
     camera.lookAt(0, 0, 0)
     renderer.render(scene, camera)
   }
+}
+
+function boundingCubeLineSegments() {
+  const positions: number[] = []
+  function p(idx: number) {
+    return [2 * (idx & 1) - 1, 2 * ((idx >> 1) & 1) - 1, 2 * ((idx >> 2) & 1) - 1]
+  }
+  for (let i = 0; i < 8; i++) {
+    for (let j = 0; j < 8; j++) {
+      const ij = i ^ j
+      if (ij === 1 || ij === 2 || ij === 4) positions.push(...p(i), ...p(j))
+      if (ij === 1 || ij === 2 || ij === 4) console.log(p(i), p(j))
+    }
+  }
+  const geometry = new THREE.BufferGeometry()
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3))
+  return new THREE.LineSegments(
+    geometry,
+    new THREE.LineBasicMaterial({ color: 'gray' })
+  )
+}
+
+function axisLineSegments() {
+  const l = 1.25
+  const arrowL = 1 / 20
+  const positions: number[] = [
+    -l, 0, 0,
+    l, 0, 0,
+    0, -l, 0,
+    0, l, 0,
+    0, 0, -l,
+    0, 0, l,
+
+    l, 0, 0,
+    l - arrowL, -arrowL, 0,
+    l - arrowL, arrowL, 0,
+    l, 0, 0,
+
+    0, l, 0,
+    0, l - arrowL, -arrowL,
+    0, l - arrowL, arrowL,
+    0, l, 0,
+
+    0, 0, l,
+    -arrowL, 0, l - arrowL,
+    arrowL, 0, l - arrowL,
+    0, 0, l,
+  ]
+  const geometry = new THREE.BufferGeometry()
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3))
+  return new THREE.LineSegments(
+    geometry,
+    new THREE.LineBasicMaterial({ color: 'gray' })
+  )
 }
