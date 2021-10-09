@@ -31,10 +31,11 @@ async function start(input: WorkerInput) {
   const preferredRanges = 65536
   const maxPolygons = 800000
   const maxResolution = 1024
+  const area = { xmin: -radius, ymin: -radius, zmin: -radius, size: 2 * radius }
   while (true) {
     ranges = splitRanges(frange, ranges)
     res *= 2
-    const positions = new Float32Array(polygonize(fvalue, ranges, 4))
+    const positions = new Float32Array(polygonize(fvalue, ranges, 4, { ...area, resolution: res }))
     const normals = generateNormals(positions)
     sendOutput({ normals, positions, resolution: res * 4, complete: false })
     numPolygons = positions.length / 9
@@ -51,7 +52,7 @@ async function start(input: WorkerInput) {
   } else {
     return
   }
-  const positions = new Float32Array(polygonize(fvalue, ranges, N))
+  const positions = new Float32Array(polygonize(fvalue, ranges, N, { ...area, resolution: res }))
   numPolygons = positions.length / 9
   if (numPolygons > maxPolygons * 1.5) return
   const normals = generateNormals(positions)
