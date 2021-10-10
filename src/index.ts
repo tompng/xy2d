@@ -23,13 +23,16 @@ const autoOperatorNames = (() => {
 })()
 setTimeout(() => {
   const el = document.querySelector<HTMLDivElement>('#mqinput')!
+  const errorEl = document.querySelector<HTMLDivElement>('#error')!
   el.style.color = 'black'
   const mathField = MQ.MathField(el, {
     handlers: {
       edit: () => {
         try {
+          errorEl.textContent = ''
           calc(convertLatex(mathField.latex()))
         } catch (e) {
+          errorEl.textContent = String(e)
           console.error(e)
         }
       }
