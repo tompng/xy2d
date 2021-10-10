@@ -5,7 +5,7 @@
   body {
     margin: 20px;
   }
-  input {
+  #mqinput input {
     font-size: 24px;
     width: 100%;
     height: 2em;
@@ -25,6 +25,18 @@
     top: 1px;
     font-size: 12px;
     color: red;
+  }
+  #debugcheckdiv {
+    position: fixed;
+    left: 20px;
+    bottom: 0px;
+    font-size: 12px;
+    line-height: 18px;
+    display: inline-block;
+  }
+  #debugcheckdiv span {
+    line-height: 22px;
+    vertical-align: bottom;
   }
 </style>
 <div id='error'></div>
@@ -46,4 +58,10 @@
     exp\left(-6-3x+3y\right)
     -\frac{2}{3}
   \right)
+</div>
+<div id='debugcheckdiv'>
+  <label>
+    <input type='checkbox' id='debugcheck' onchange='window.debugRender=this.checked'>
+    <span>debug render</span>
+  </label>
 </div>

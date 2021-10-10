@@ -20,7 +20,7 @@ export class Panel {
     public frange: RangeFunction,
     public range: Range,
     public resolution: number,
-    public colors: Colors
+    public colors: Colors,
   ) {
     this.backgroundCanvas = document.createElement('canvas')
     this.lineCanvas = document.createElement('canvas')
@@ -28,19 +28,6 @@ export class Panel {
     this.lineCanvas.style.position = 'absolute'
     this.backgroundCanvas.style.zIndex = '0'
     this.lineCanvas.style.zIndex = '1'
-    this.resetResolution(resolution)
-  }
-  reset(
-    fvalue: ValueFunction,
-    frange: RangeFunction,
-    range: Range,
-    resolution: number,
-    colors: Colors
-   ) {
-    this.fvalue = fvalue
-    this.frange = frange
-    this.range = range
-    this.colors = colors
     this.resetResolution(resolution)
   }
   resetRange(range: Range) {
@@ -60,6 +47,7 @@ export class Panel {
   }
   render() {
     this.rendered = true
+    const debugRender = (window as any).debugRender
     const bgCtx = this.backgroundCanvas.getContext('2d')!
     const lineCtx = this.lineCanvas.getContext('2d')!
     const { colors, resolution, offset, pointRadius } = this
@@ -79,7 +67,7 @@ export class Panel {
         const size = areaResults[i++]
         const result = areaResults[i++]
         if (result !== c) continue
-        bgCtx.globalAlpha = 0.5+0.5*Math.random()
+        bgCtx.globalAlpha = debugRender ? 0.5+0.5*Math.random() : 1
         bgCtx.fillRect(resolution * x , resolution - resolution * (y + size), resolution * size, resolution * size)
       }
       bgCtx.globalAlpha = 1

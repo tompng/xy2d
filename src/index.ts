@@ -47,7 +47,7 @@ setTimeout(() => {
 
 ;(window as any).parse = parse
 
-let prevView: View | undefined
+let _view: View | undefined
 function calc(exp: string) {
   let [ast, mode] = parse(exp)
   const variables = extractVariables(ast)
@@ -75,16 +75,16 @@ function calc(exp: string) {
     mode === '>' ? { pos: '#aaf', line: '#444' } :
     mode === '>=' ? { zero: '#aaa', pos: '#aaf', line: 'black' } :
     { zero: '#aaa', neg: '#aaf', pos: '#faa', line: 'black' }
-  if (prevView) {
-    prevView.fvalue = fvalue
-    prevView.frange = frange
-    prevView.colors = colors
-    prevView.reset()
-    prevView.update(200)
-    prevView.renderAxis()
+  if (_view) {
+    _view.fvalue = fvalue
+    _view.frange = frange
+    _view.colors = colors
+    _view.reset()
+    _view.update(200)
+    _view.renderAxis()
     return
   }
-  const view = prevView = new View(fvalue, frange, colors)
+  const view = _view = new View(fvalue, frange, colors)
   const setSize = () => {
     view.width = window.innerWidth - 40
     view.height = window.innerHeight - 140
@@ -189,4 +189,11 @@ function gesture(dom: HTMLElement, cb: (e: { dx: number; dy: number; zoom: { x: 
   document.addEventListener('pointercancel', e => {
     pointers.delete(e.pointerId)
   })
+}
+
+onload = () => {
+  const debugRenderEl = document.querySelector<HTMLInputElement>('#debugcheck')!
+  debugRenderEl.onchange = () => {
+    (window as any).debugRender = debugRenderEl.checked
+  }
 }
