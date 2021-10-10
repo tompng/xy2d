@@ -149,7 +149,7 @@ export class View {
     const { center, width, height, sizePerPixel, panelResolution } = this
     const viewResolution = Math.min(width, height)
     const viewSize = sizePerPixel * viewResolution
-    const panelSize = panelResolution / viewResolution * viewSize
+    const panelSize = panelResolution / viewResolution * viewSize / devicePixelRatio
     this.renderedPanelSize = panelSize
     const xmin = center.x - viewSize * width / viewResolution / 2
     const xmax = center.x + viewSize * width / viewResolution / 2
@@ -264,14 +264,20 @@ export class View {
   }
   renderAxis() {
     const { axisCanvas, width, height, center, sizePerPixel } = this
+    const canvasWidth = width * devicePixelRatio
+    const canvasHeight = height * devicePixelRatio
     const viewResolution = Math.min(width, height)
     const viewSize = sizePerPixel * viewResolution
-    if (axisCanvas.width !== width || axisCanvas.height !== height) {
-      axisCanvas.width = width
-      axisCanvas.height = height
+    if (axisCanvas.width !== canvasWidth || axisCanvas.height !== canvasHeight) {
+      axisCanvas.width = canvasWidth
+      axisCanvas.height = canvasHeight
+      axisCanvas.style.width = width + 'px'
+      axisCanvas.style.height = height + 'px'
     }
     const ctx = axisCanvas.getContext('2d')
     if (!ctx) return
+    ctx.save()
+    ctx.scale(canvasWidth / width, canvasHeight / height)
     ctx.clearRect(0, 0, width, height)
     let xoffset = 0
     let yoffset = 0
@@ -344,5 +350,6 @@ export class View {
       ctx.strokeText(label, x, y)
       ctx.fillText(label, x, y)
     }
+    ctx.restore()
   }
 }
