@@ -70,6 +70,10 @@ export function compactAST(ast: ASTNode, constants: Record<string, number>): AST
         case 'acosh': return Math.acosh(a)
         case 'atanh': return Math.atanh(a)
         case 'abs': return Math.abs(a)
+        case 'floor': return Math.floor(a)
+        case 'round': return Math.round(a)
+        case 'ceil': return Math.ceil(a)
+        case 'sign': return Math.sign(a)
       }
     } else if (args.length !== 0) {
       switch (ast.op) {

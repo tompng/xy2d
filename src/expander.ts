@@ -397,6 +397,26 @@ const abs: Expander = (args, namer) => {
   return [[minvar, maxvar], code]
 }
 
+function stepFunc(fname: string, f: (v: number) => number): Expander {
+  return (args, namer) => {
+    assertArgNum(fname, args, 1)
+    const [a] = args
+    if (typeof a === 'number') return [f(a), '']
+    const [min, max] = a
+    const minvar = namer()
+    const maxvar = namer()
+    const code = [
+      `const ${minvar}=Math.${fname}(${min}),${maxvar}=Math.${fname}(${max})`,
+      `if(${minvar}!==${maxvar}){${GAPMARK}}`
+    ].join(';')
+    return [[minvar, maxvar], code]
+  }
+}
+const floor = stepFunc('floor', Math.floor)
+const ceil = stepFunc('ceil', Math.ceil)
+const round = stepFunc('round', Math.round)
+const sign = stepFunc('sign', Math.sign)
+
 const atanOverload: Expander = (args, namer) => {
   if (args.length === 2) return atan2(args, namer)
   return atan(args, namer)
@@ -429,7 +449,11 @@ export const expanders = {
   pow,
   abs,
   min,
-  max
+  max,
+  floor,
+  ceil,
+  round,
+  sign,
 }
 
 export const specialVariables: Record<string, Expander> = {

@@ -1,6 +1,9 @@
 import type { ASTNode } from './ast'
 // TODO: pow, abs min, max, etc
-const functionNames = new Set(['log', 'exp', 'sqrt', 'pow', 'hypot', 'sin', 'cos', 'tan', 'asin', 'acos', 'atan', 'sinh', 'cosh', 'tanh', 'asinh', 'acosh', 'atanh', 'atan2', '√', 'abs', 'arctan', 'min', 'max'])
+const functionNames = new Set([
+  'log', 'exp', 'sqrt', 'pow', 'hypot', 'sin', 'cos', 'tan', 'asin', 'acos', 'atan', 'sinh', 'cosh', 'tanh', 'asinh', 'acosh', 'atanh', 'atan2', '√', 'abs', 'arctan', 'min', 'max',
+  'floor', 'ceil', 'round', 'sgn', 'sign', 'signum'
+])
 const constantNames = new Set(['e', 'pi', 'π', 'PI', 'E'])
 const varNames = new Set(['x', 'y', 'z', 'th', 'theta', 'r', 'θ'])
 const comparers = new Set(['<', '=', '>', '<=', '>='])
@@ -8,7 +11,8 @@ const operators = new Set(['+', '-', '*', '/', '^', '**'])
 const alias: Record<string, string | undefined> = {
   '**': '^', '√': 'sqrt', 'arctan': 'atan',
   'π': 'pi', 'PI': 'pi', 'E': 'e',
-  'th': 'theta', 'θ': 'theta'
+  'th': 'theta', 'θ': 'theta',
+  'sgn': 'sign', 'signum': 'sign'
 }
 const tokenSet = new Set([...functionNames, ...constantNames, ...varNames, ...operators, ...comparers, ',', ' '])
 const maxTokenSize = Math.max(...[...tokenSet].map(v => v.length))
