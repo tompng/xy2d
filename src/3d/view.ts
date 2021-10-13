@@ -79,9 +79,9 @@ export class View {
       if (document.activeElement !== document.body) (document.activeElement as { blur?: () => void } | null)?.blur?.()
     })
     document.addEventListener('pointermove', e => {
-      e.preventDefault()
       const pointer = pointers.find(p => p.id === e.pointerId)
       if (!pointer) return
+      e.preventDefault()
       const dx = (e.pageX - pointer.x) / dom.offsetWidth * 4
       const dy = (e.pageY - pointer.y) / dom.offsetWidth * 4
       const center = { x: 0, y: 0 }
