@@ -18,7 +18,7 @@ function calc(exp: string, radius: number) {
   worker.addEventListener('message', (e: MessageEvent<WorkerOutput>) => {
     const { data } = e
     if (data.complete) {
-      statusDOM.innerHTML = statusDOM.innerHTML.replace('...', 'complete')
+      statusDOM.innerHTML = data.error ? 'unknown error' : statusDOM.innerHTML.replace('...', 'complete')
       return
     }
     const { positions, normals, resolution } = data

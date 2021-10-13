@@ -10,18 +10,27 @@ export type WorkerOutput = {
   normals: Float32Array
   resolution: number
   complete: false
-} | { complete: true }
+  error?: false
+} | { complete: true; error?: boolean }
 
-function sendOutput(message: WorkerOutput) {
+function sendMessage(message: WorkerOutput) {
   postMessage(message)
 }
 
 addEventListener('message', e => {
-  start(e.data as WorkerInput)
-  sendOutput({ complete: true })
+  let sent = false
+  try {
+    start(e.data as WorkerInput, output => {
+      sent = true
+      sendMessage(output)
+    })
+  } catch (e) {
+    console.error(e)
+  }
+  sendMessage({ complete: true, error: !sent })
 })
 
-async function start(input: WorkerInput) {
+function start(input: WorkerInput, sendOutput: (output: WorkerOutput) => void) {
   const frange = eval(input.frange) as RangeFunction3D
   const fvalue = eval(input.fvalue) as ValueFunction3D
   const { radius } = input
