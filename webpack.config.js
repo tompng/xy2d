@@ -1,7 +1,7 @@
 module.exports = {
   mode: 'development',
   entry: {
-    index: './src/index.ts',
+    index2d: './src/2d/index.ts',
     index3d: './src/3d/index.ts',
     worker3d: './src/3d/worker.ts'
   },

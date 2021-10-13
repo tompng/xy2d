@@ -1,4 +1,4 @@
-import type { RangeResult } from './expander'
+import type { RangeResult } from '../core/expander'
 type FRange = (xmin: number, xmax: number, ymin: number, ymax: number) => RangeResult
 type FValue = (x: number, y: number) => number
 

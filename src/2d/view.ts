@@ -1,4 +1,4 @@
-import { RangeFunction, ValueFunction } from './ast'
+import { RangeFunction, ValueFunction } from '../core/ast'
 import { Solver } from './solver'
 
 type Colors = {

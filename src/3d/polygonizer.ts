@@ -1,4 +1,4 @@
-import { RangeFunction3D, ValueFunction3D } from '../ast'
+import { RangeFunction3D, ValueFunction3D } from '../core/ast'
 import { generateMarchingCubeTable } from './marchingcube'
 export type Range3D = Parameters<RangeFunction3D>
 

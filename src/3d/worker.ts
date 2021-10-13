@@ -1,4 +1,4 @@
-import type { RangeFunction3D, ValueFunction3D } from '../ast'
+import type { RangeFunction3D, ValueFunction3D } from '../core/ast'
 import { Range3D, splitRanges, polygonize } from './polygonizer'
 export type WorkerInput = {
   fvalue: string

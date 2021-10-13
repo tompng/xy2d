@@ -1,5 +1,5 @@
-import { astTo3DFunction, astTo3DRangeFunction } from '../ast'
-import { parse } from '../parser'
+import { astTo3DFunction, astTo3DRangeFunction } from '../core/ast'
+import { parse } from '../core/parser'
 import { View, generateMesh } from './view'
 import type { WorkerInput, WorkerOutput } from './worker'
 import * as THREE from 'three'

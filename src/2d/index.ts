@@ -1,8 +1,8 @@
-import { astToFunction, astToRangeFunction, extractVariables } from './ast'
-import { parse } from './parser'
+import { astToFunction, astToRangeFunction, extractVariables } from '../core/ast'
+import { parse } from '../core/parser'
 import { View } from './view'
 import css from 'mathquill/build/mathquill.css'
-import { convertLatex } from './latex'
+import { convertLatex } from '../core/latex'
 
 const style = document.createElement('style')
 style.textContent = css
