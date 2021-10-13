@@ -13,7 +13,7 @@ require('mathquill/build/mathquill.js')
 const MQ = (window as any).MathQuill.getInterface(2)
 ;(window as any).MQ = MQ
 const autoOperatorNames = (() => {
-  const names = ['sqrt', 'exp', 'log', 'hypot', 'abs', 'min', 'max', 'pow']
+  const names = ['sqrt', 'exp', 'log', 'hypot', 'abs', 'min', 'max', 'pow', 'sgn', 'sign', 'signum', 'round', 'floor', 'ceil']
   for (const base of ['sin', 'cos', 'tan']) {
     for (const prefix of ['a', 'arc', '']) {
       names.push(prefix + base, prefix + base + 'h')
