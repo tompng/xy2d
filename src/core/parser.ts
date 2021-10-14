@@ -45,8 +45,11 @@ function convertAlias(s: string) {
 function matchToken(s: string, i: number): [number | string, number] | null{
   if (s[i].match(/\d/)) {
     let len = 1
-    const dotCount = 0
-    while (i + len < s.length && (s[i + len].match(/\d/) || (dotCount === 0 && s[i + len] === '.'))) len++
+    let dotCount = 0
+    while (i + len < s.length && (s[i + len].match(/\d/) || (dotCount === 0 && s[i + len] === '.'))) {
+      if (s[i + len] === '.') dotCount++
+      len++
+    }
     return [parseFloat(s.substr(i, len)), len]
   }
   for (let len = maxTokenSize; len >= 1; len-=1) {
