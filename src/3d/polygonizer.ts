@@ -59,19 +59,28 @@ function polygonizeRange(
         lnext[i * N + j] = fvalue(x, ymin + yscale * j, z1)
       }
     }
-    polygonizeCrossSection(lprev, lnext, segments, xmin, ymin, z, xscale, yscale, zscale, output, edges)
+    polygonizeCrossSection(lprev, lnext, segments, fvalue, xmin, ymin, z, z1, xscale, yscale, zscale, output, edges)
     ;[lnext, lprev] = [lprev, lnext]
   }
 }
 
 function polygonizeCrossSection(
   lprev: Float64Array, lnext: Float64Array, segments: number,
-  xmin: number, ymin: number, z: number,
+  fvalue: ValueFunction3D,
+  xmin: number, ymin: number, z: number, z1: number,
   xscale: number, yscale: number, zscale: number,
   output: number[], edges?: [number, number, number, number][]
 ) {
+  function find(x0: number, y0: number, z0: number, x1: number, y1: number, z1: number, v0: number, v1: number) {
+    const s = v0 / (v0 - v1)
+    if (!(0 < s && s < 1)) return s
+    const vm = fvalue((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2)
+    return v0 * vm <= 0 ? v0 / (v0 - vm) / 2 : (1 + vm / (vm - v1)) / 2
+  }
   const N = segments + 1
   for (let i = 0; i < segments; i++) {
+    const x = xmin + xscale * i
+    const x1 = xmin + xscale * (i + 1)
     for (let j = 0; j < segments; j++) {
       const idx = i * N + j
       const v000 = lprev[idx]
@@ -91,8 +100,8 @@ function polygonizeCrossSection(
                   (v011 > 0 ? 64 : 0) |
                   (v111 > 0 ? 128 : 0)
       if (bit === 0 || bit === 255) continue
-      const x = xmin + xscale * i
       const y = ymin + yscale * j
+      const y1 = ymin + yscale * (j + 1)
       if (edges) {
         const approxC = (v000 + v001 + v010 + v011 + v100 + v101 + v110 + v111) / 8
         const approxX = (v100 + v101 + v110 + v111 - v000 - v001 - v010 - v011) / 8
@@ -114,18 +123,18 @@ function polygonizeCrossSection(
       }
       const coords = marchingCubePattern[bit]
       const edgeCoords = [
-        v000 / (v000 - v100), 0, 0,
-        1, v100 / (v100 - v110), 0,
-        v010 / (v010 - v110), 1, 0,
-        0, v000 / (v000 - v010), 0,
-        0, 0, v000 / (v000 - v001),
-        1, 0, v100 / (v100 - v101),
-        1, 1, v110 / (v110 - v111),
-        0, 1, v010 / (v010 - v011),
-        v001 / (v001 - v101), 0, 1,
-        1, v101 / (v101 - v111), 1,
-        v011 / (v011 - v111), 1, 1,
-        0, v001 / (v001 - v011), 1,
+        find(x, y, z, x1, y, z, v000, v100), 0, 0,
+        1, find(x1, y, z, x1, y1, z, v100, v110), 0,
+        find(x, y1, z, x1, y1, z, v010, v110), 1, 0,
+        0, find(x, y, z, x, y1, z, v000, v010), 0,
+        0, 0, find(x, y, z, x, y, z1, v000, v001),
+        1, 0, find(x1, y, z, x1, y, z1, v100, v101),
+        1, 1, find(x1, y1, z, x1, y1, z1, v110, v111),
+        0, 1, find(x, y1, z, x, y1, z1, v010, v011),
+        find(x, y, z1, x1, y, z1, v001, v101), 0, 1,
+        1, find(x1, y, z1, x1, y1, z1, v101, v111), 1,
+        find(x, y1, z1, x1, y1, z1, v011, v111), 1, 1,
+        0, find(x, y, z1, x, y1, z1, v001, v011), 1,
       ]
       for (let i = 0; i < coords.length; i+= 3) {
         const i1 = coords[i] * 3
