@@ -458,5 +458,12 @@ export const expanders = {
 
 export const specialVariables: Record<string, Expander> = {
   theta: ([x, y], namer) => atan2([y, x], namer),
-  r: hypot
+  r: hypot,
+  phi: (args, namer) => {
+    if (args.length !== 3) throw 'cannot use `φ` in 2D mode'
+    const [x, y, z] = args
+    const [rxy, hypotCode] = hypot([x, y], namer)
+    const [res, atanCode] = atan2([rxy, z], namer)
+    return [res, `${hypotCode};${atanCode}`]
+  }
 }

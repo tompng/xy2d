@@ -127,9 +127,10 @@ export function astToFunction(ast: ASTNode, constants: Record<string, number> = 
 }
 
 export function astTo3DFunction(ast: ASTNode, constants: Record<string, number> = mathConstants): ValueFunction3D {
-  const args = new Set(['x', 'y', 'z', 'r', 'theta'])
+  const args = new Set(['x', 'y', 'z', 'r', 'theta', 'phi'])
   const variables = extractVariables(ast)
   const codes: string[] = []
+  if (variables.includes('phi')) codes.unshift('const phi=Math.atan2(Math.hypot(x,y),z);')
   if (variables.includes('theta')) codes.unshift('const theta=Math.atan2(y,x);')
   if (variables.includes('r')) codes.unshift('const r=Math.hypot(x,y,z);')
   const retval = astToCode(compactAST(ast, constants), args)

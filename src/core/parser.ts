@@ -5,13 +5,13 @@ const functionNames = new Set([
   'floor', 'ceil', 'round', 'sgn', 'sign', 'signum'
 ])
 const constantNames = new Set(['e', 'pi', 'π', 'PI', 'E'])
-const varNames = new Set(['x', 'y', 'z', 'th', 'theta', 'r', 'θ'])
+const varNames = new Set(['x', 'y', 'z', 'th', 'theta', 'r', 'θ', 'phi', 'φ'])
 const comparers = new Set(['<', '=', '>', '<=', '>='])
 const operators = new Set(['+', '-', '*', '/', '^', '**'])
 const alias: Record<string, string | undefined> = {
   '**': '^', '√': 'sqrt', 'arctan': 'atan',
   'π': 'pi', 'PI': 'pi', 'E': 'e',
-  'th': 'theta', 'θ': 'theta',
+  'th': 'theta', 'θ': 'theta', 'φ': 'phi',
   'sgn': 'sign', 'signum': 'sign'
 }
 const tokenSet = new Set([...functionNames, ...constantNames, ...varNames, ...operators, ...comparers, ',', ' '])
