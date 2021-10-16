@@ -18,6 +18,8 @@
     "react": "*",
     "react-dom": "*",
     "@types/react-dom": "*",
+    "@dnd-kit/core": "*",
+    "@dnd-kit/sortable": "*",
     "@mui/material": "*",
     "@emotion/react": "*",
     "@emotion/styled": "*"
