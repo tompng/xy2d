@@ -62,14 +62,14 @@ export class View {
   bind() {
     const { domElement: dom } = this.renderer
     let pointers: { id: number; x: number; y: number }[] = []
-    let timer: NodeJS.Timer | null = null
+    let timer: number | null = null
     const lazyChangeZoom = (radius: number) => {
       this.zoomRadius = clamp(radius, zoomMinRadius, zoomMaxRadius)
       if (timer) clearTimeout(timer)
       timer = setTimeout(() => {
         timer = null
         this.triggerZoom()
-      }, 100)
+      }, 100) as unknown as number
     }
     dom.addEventListener('touchstart', e => e.preventDefault())
     dom.addEventListener('pointerdown', e => {
