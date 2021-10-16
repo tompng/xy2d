@@ -1,8 +1,13 @@
+import React from 'react'
+import { render as renderDOM } from 'react-dom'
 import { astTo3DFunction, astTo3DRangeFunction } from '../core/ast'
 import { parse } from '../core/parser'
 import { View, generateMesh } from './view'
 import type { WorkerInput, WorkerOutput } from './worker'
 import * as THREE from 'three'
+
+const App: React.VFC = () => null
+renderDOM(<App />, document.getElementById('app')!)
 
 let worker: Worker | null = null
 function calc(exp: string, radius: number) {

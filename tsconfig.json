@@ -4,8 +4,10 @@
     "sourceMap": true,
     "downlevelIteration": true,
     "target": "es5",
-    "module": "es2015",
+    "module": "esnext",
     "moduleResolution": "node",
+    "jsx": "react",
+    "allowSyntheticDefaultImports": true,
     "lib": [
       "esnext",
       "dom",
