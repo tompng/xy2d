@@ -5,8 +5,9 @@ import { parse } from '../core/parser'
 import { View, generateMesh } from './view'
 import type { WorkerInput, WorkerOutput } from './worker'
 import * as THREE from 'three'
+import { Form } from './components/Form'
 
-const App: React.VFC = () => null
+const App: React.VFC = () => <Form />
 renderDOM(<App />, document.getElementById('app')!)
 
 let worker: Worker | null = null
