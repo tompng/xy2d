@@ -36,14 +36,14 @@ export const App: React.VFC = () => {
   }, [])
   const [radius, setRadius] = useState(1)
   const [formulas, setFormulas] = useState<FormulaType[]>([newFormula('sin4xcos4y+sin4ycos4z+sin4zcos4x=r^2/3'), newFormula()])
-  const [states, watcher] = useFormulas(formulas, radius)
+  const [statusMap, watcher] = useFormulas(formulas, radius)
   return (
     <>
       <div style={{ position: 'fixed', left: 0, top: 0 }}>
         <View watcher={watcher} onZoom={setRadius} width={windowSize.width} height={windowSize.height - height} />
       </div>
       <div style={{ position: 'fixed', left: 0, bottom: 0, width: '100%', height, background: 'white', overflow: 'auto' }}>
-        <MathList formulas={formulas} setFormulas={setFormulas} />
+        <MathList formulas={formulas} formulaStatus={statusMap} setFormulas={setFormulas} />
       </div>
       <AreaDragHandler y={-height} onDragMove={onDragMove}>
         <div style={{ position: 'fixed', cursor: 'ns-resize', left: 0, bottom: height - 8, width: '100%', height: 32 }}></div>

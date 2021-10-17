@@ -45,8 +45,7 @@ type FormulaInputType = {
   text: string
 }
 
-type FormulaState = {
-  status: string
+export type FormulaState = {
   resolution: number
   complete: boolean
   error: string | null
@@ -54,7 +53,6 @@ type FormulaState = {
 class PolygonizeWorker {
   worker = new Worker('./dist/worker3d.js')
   state: FormulaState = {
-    status: '',
     resolution: 0,
     complete: false,
     error: null
