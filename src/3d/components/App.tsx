@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react'
-import { useFormulas, View, Camera } from './View'
+import { useFormulas, View, Camera, FormulaInputType } from './View'
 import { MathList } from './Form'
 import {
   Slider, Input,
@@ -34,6 +34,35 @@ function useWindowSize() {
 function formulaAreaInitialHeight() {
   return Math.min(innerHeight - 100, Math.max(innerHeight / 3, 300))
 }
+
+function getInitialFormula() {
+  let radius = 1
+  let formulas: FormulaInputType[] = [{ text: 'r^3=1+4xyz' }]
+  try {
+    const queries = location.search.substr(location.search[0] === '?' ? 1 : 0).split('&')
+    for (const q of queries) {
+      const [key, value] = q.split('=', 2)
+      if (key === 'r') {
+        const r = parseFloat(value)
+        if (!isNaN(r)) radius = Math.max(0.001, Math.min(r, 1000))
+      } else if (key === 'f') {
+        const res = JSON.parse(decodeURIComponent(value)) as unknown
+        if (Array.isArray(res)) {
+          formulas = res.map(f => {
+            const text = ('text' in f && typeof f.text === 'string') ? f.text : ''
+            const color = ('color' in f && typeof f.color === 'string') ? f.color : undefined
+            return { text, renderingOption: { color } }
+          })
+        }
+      }
+    }
+  } catch(e) {
+    console.error(e)
+  }
+  return [formulas, radius] as const
+}
+const [initialFormulas, initialRadius] = getInitialFormula()
+
 export const App: React.VFC = () => {
   const [height, setHeight] = useState(formulaAreaInitialHeight)
   const windowSize = useWindowSize()
@@ -43,10 +72,17 @@ export const App: React.VFC = () => {
     if (h < 0 || (complete && h < 30)) h = 0
     setHeight(Math.min(h, innerHeight - 100))
   }, [])
-  const [camera, setCamera] = useState({ xyTheta: 0.5, zTheta: 0.1, distance: 1, radius: 1, rotate: 0 })
-  const [formulas, setFormulas, watcher] = useFormulas([{ text: 'sin4xcos4y+sin4ycos4z+sin4zcos4x=r^2/3' }], camera.radius)
+  const [camera, setCamera] = useState({ xyTheta: 0.5, zTheta: 0.1, distance: 1, radius: initialRadius, rotate: 0 })
+  const [formulas, setFormulas, watcher] = useFormulas(initialFormulas, camera.radius)
   const [cameraDialogOpen, setCameraDialogOpen] = useState(false)
   const radiusString = camera.radius.toFixed(Math.max(-Math.round(Math.log10(camera.radius)) + 2, 0))
+  useEffect(() => {
+    const formatted = formulas.map(f => ({ text: f.text, color: f.renderingOption.color }))
+    const last = formatted[formatted.length - 1]
+    if (last && !last.color && !last.color) formatted.pop()
+    const path = location.pathname + `?r=${camera.radius}&f=${encodeURIComponent(JSON.stringify(formatted))}`
+    history.replaceState({}, '', path)
+  }, [formulas, camera.radius])
   return (
     <>
       <div style={{ position: 'fixed', left: 0, top: 0 }}>

@@ -145,7 +145,7 @@ class PolygonizeWorker {
   }
 }
 
-type FormulaInputType = {
+export type FormulaInputType = {
   text: string
   renderingOption?: RenderingOption
 }
