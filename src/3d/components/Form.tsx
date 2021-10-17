@@ -16,7 +16,7 @@ type MathListItemProps = {
   delete: (formula: FormulaType) => void
 }
 
-const MathListItem: React.VFC<MathListItemProps> = ({ formula, update }) => {
+const MathListItem = React.memo<MathListItemProps>(({ formula, update }) => {
   const [text, setText] = useState(formula.text)
   const submit = () => update({ ...formula, text })
   const sortable = useSortable({ id: formula.id })
@@ -54,9 +54,9 @@ const MathListItem: React.VFC<MathListItemProps> = ({ formula, update }) => {
       />
     </div>
   )
-}
+})
 
-const FormulaStatus: React.VFC<{ progress?: FormulaProgress }> = ({ progress }) => {
+const FormulaStatus = React.memo<{ progress?: FormulaProgress }>(({ progress }) => {
   if (!progress) return null
   const { complete, error, resolution } = progress
   const rmessage = resolution === 0 ? '' : [resolution, resolution, resolution].join('×')
@@ -64,7 +64,7 @@ const FormulaStatus: React.VFC<{ progress?: FormulaProgress }> = ({ progress }) 
   return <div style={{ position: 'absolute', left: 0, bottom: 0, color: error ? 'red' : '', fontSize: '10px' }}>
     {rmessage}{message}
   </div>
-}
+})
 
 export function newFormula(text = ''): FormulaType {
   return { id: String(Math.random()), text, renderingOption: {} }
@@ -80,7 +80,7 @@ type MathListProps = {
   formulas: FormulaType[]
   setFormulas: SetFormulasType
 }
-export const MathList: React.VFC<MathListProps> = ({ formulas, setFormulas }) => {
+export const MathList = React.memo<MathListProps>(({ formulas, setFormulas }) => {
   const updateFormula = useCallback((formula: FormulaType) => {
     setFormulas(formulas => normalizeFormulas(formulas.map(f => (f.id === formula.id ? formula : f))))
   }, [])
@@ -120,9 +120,9 @@ export const MathList: React.VFC<MathListProps> = ({ formulas, setFormulas }) =>
       </SortableContext>
     </DndContext>
   )
-}
+})
 
-const ClickableInsideDND: React.FC<{ onClick?: () => void }> = ({ onClick, children }) => {
+const ClickableInsideDND = React.memo<{ onClick?: () => void; children?: React.ReactNode }>(({ onClick, children }) => {
   const ref = useRef({ id: -1, time: 0, x: 0, y: 0 })
   const onPointerDown = useCallback((e: React.PointerEvent) => {
     ref.current = { id: e.pointerId, time: performance.now(), x: e.pageX, y: e.pageY }
@@ -134,9 +134,9 @@ const ClickableInsideDND: React.FC<{ onClick?: () => void }> = ({ onClick, child
 
   }, [onClick])
   return <div onPointerDown={onPointerDown} onPointerUp={onPointerUp} style={{ cursor: 'pointer' }}>{children}</div>
-}
+})
 
-const ColorDialog: React.VFC<{ open: boolean; onClose: () => void; color: string; onChange: (color: string) => void }> = ({
+const ColorDialog = React.memo<{ open: boolean; onClose: () => void; color: string; onChange: (color: string) => void }>(({
   open, onClose, color, onChange
 }) => {
   return (
@@ -150,9 +150,9 @@ const ColorDialog: React.VFC<{ open: boolean; onClose: () => void; color: string
       </DialogContent>
     </Dialog>
   )
-}
+})
 
-const ColorPicker: React.VFC<{ color: string; onChange: (color: string) => void }> = ({ color, onChange }) => {
+const ColorPicker = React.memo<{ color: string; onChange: (color: string) => void }>(({ color, onChange }) => {
   const [r, g, b] = [0, 1, 2].map(i => parseInt(color.substr(2 * i + 1, 2), 16))
   const update = (r: number, g: number, b: number) => {
     onChange('#' + [r, g, b].map(c => {
@@ -165,7 +165,7 @@ const ColorPicker: React.VFC<{ color: string; onChange: (color: string) => void 
     <ColorSlider SliderComponent={GreenSlider} value={g} onChange={g => update(r, g, b)} />
     <ColorSlider SliderComponent={BlueSlider} value={b} onChange={b => update(r, g, b)} />
   </>)
-}
+})
 
 function createColoredSlider(color: string) {
   return styled(Slider)({
@@ -180,7 +180,7 @@ const RedSlider = createColoredSlider('#f44')
 const GreenSlider = createColoredSlider('#4f4')
 const BlueSlider = createColoredSlider('#44f')
 type SliderComponentType = ReturnType<typeof createColoredSlider>
-const ColorSlider: React.VFC<{ SliderComponent: SliderComponentType; value: number; onChange: (value: number) => void }> = ({ SliderComponent, value, onChange }) => {
+const ColorSlider = React.memo<{ SliderComponent: SliderComponentType; value: number; onChange: (value: number) => void }>(({ SliderComponent, value, onChange }) => {
   const handleChange = (value: number) => {
     if (0 <= value && value <= 255) onChange(value)
   }
@@ -210,4 +210,4 @@ const ColorSlider: React.VFC<{ SliderComponent: SliderComponentType; value: numb
       </Grid>
     </Grid>
   )
-}
+})

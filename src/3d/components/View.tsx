@@ -20,7 +20,7 @@ type ViewProps = {
   camera: Camera
   onCameraChange: (camera: Camera) => void
 }
-export const View: React.VFC<ViewProps> = ({ watcher, camera, onCameraChange, width, height }) => {
+export const View = React.memo<ViewProps>(({ watcher, camera, onCameraChange, width, height }) => {
   const ref = useRef<HTMLDivElement>(null)
   const viewRef = useRef<WGLView>()
   useEffect(() => {
@@ -88,7 +88,7 @@ export const View: React.VFC<ViewProps> = ({ watcher, camera, onCameraChange, wi
     viewRef.current?.setSize(width, height)
   }, [width, height])
   return (<div style={{ width, height }} ref={ref}></div>)
-}
+})
 
 export type FormulaProgress = {
   resolution: number

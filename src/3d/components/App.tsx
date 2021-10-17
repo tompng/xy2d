@@ -72,8 +72,10 @@ type AreaDragHanderParams = {
   y: number
   onDragMove: (y: number, complete: boolean) => void
   onClick?: () => void
+  children?: React.ReactNode
 }
-const AreaDragHandler: React.FC<AreaDragHanderParams> = ({ y, onDragMove, onClick, children }) => {
+
+const AreaDragHandler = React.memo<AreaDragHanderParams>(({ y, onDragMove, onClick, children }) => {
   const callbackRef = useRef({ onDragMove, onClick })
   const pointerRef = useRef({ id: -1, y: 0, maxMove: 0, pageY: 0 })
   useEffect(() => { callbackRef.current = { onClick, onDragMove } }, [onClick, onDragMove])
@@ -106,9 +108,10 @@ const AreaDragHandler: React.FC<AreaDragHanderParams> = ({ y, onDragMove, onClic
     pointerRef.current = { id: e.pointerId, y, maxMove: 0, pageY: e.pageY }
   }, [y])
   return <div onPointerDown={onPointerDown} style={{ touchAction: 'none' }}>{children}</div>
-}
+})
 
-const CameraDialog: React.VFC<{ open: boolean; onClose: () => void; camera: Camera; onChange: (camera: Camera) => void }> = ({ open, onClose, camera, onChange }) => {
+type CameraDialogProps = { open: boolean; onClose: () => void; camera: Camera; onChange: (camera: Camera) => void }
+const CameraDialog = React.memo<CameraDialogProps>(({ open, onClose, camera, onChange }) => {
   const yaw = (camera.xyTheta * 180 / Math.PI % 360 + 360) % 360
   const pitch = camera.zTheta * 180 / Math.PI
   return (
@@ -125,8 +128,9 @@ const CameraDialog: React.VFC<{ open: boolean; onClose: () => void; camera: Came
       </DialogContent>
     </Dialog>
   )
-}
-const CameraSlider: React.VFC<{ title: string; value: number; min: number; step: number; scale?: number; max: number; mod?: boolean; onChange: (v: number) => void }> = ({
+})
+
+const CameraSlider = React.memo<{ title: string; value: number; min: number; step: number; scale?: number; max: number; mod?: boolean; onChange: (v: number) => void }>(({
   title, value, step, min, max, onChange, scale
 }) => {
   const sliderScale = scale ?? 1
@@ -168,4 +172,4 @@ const CameraSlider: React.VFC<{ title: string; value: number; min: number; step:
       </Grid>
     </Box>
   )
-}
+})
