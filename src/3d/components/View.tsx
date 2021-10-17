@@ -64,7 +64,7 @@ export const View = React.memo<ViewProps>(({ watcher, camera, onCameraChange, wi
     view.xyTheta = camera.xyTheta
     view.zTheta = camera.zTheta
     view.cameraDistance = camera.distance
-    const speed = camera.rotate ** 3 / 64
+    const speed = -(camera.rotate ** 3 / 64)
     if (speed === 0 && view.rotation?.speed) {
       view.rotation = null
     } else if(speed !== 0 && view.rotation?.speed !== speed) {

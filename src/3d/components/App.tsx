@@ -94,13 +94,13 @@ export const App: React.VFC = () => {
       <AreaDragHandler y={-height} onDragMove={onDragMove}>
         <div style={{ position: 'fixed', cursor: 'ns-resize', left: 0, bottom: height - 8, width: '100%', height: 32 }}></div>
       </AreaDragHandler>
-      <div style={{ position: 'fixed', right: 72, bottom: height + 8, color: 'gray', fontSize: '14px' }}>
+      <div style={{ position: 'fixed', right: 56, bottom: height + 8, color: 'gray', fontSize: '14px' }}>
         (-{radiusString} &lt; x, y, z &lt; {radiusString})
       </div>
-      <Fab style={{ position: 'fixed', left: 8, bottom: height + 8 }} onClick={() => setHeight(height === 0 ? formulaAreaInitialHeight() : 0)}>
+      <Fab size="small" style={{ position: 'fixed', left: 8, bottom: height + 8 }} onClick={() => setHeight(height === 0 ? formulaAreaInitialHeight() : 0)}>
         {height === 0 ? <KeyboardArrowUpRounded /> : <KeyboardArrowDownRounded />}
       </Fab>
-      <Fab style={{ position: 'fixed', right: 8, bottom: height + 8 }} onClick={() => setCameraDialogOpen(true)}>
+      <Fab size="small" style={{ position: 'fixed', right: 8, bottom: height + 8 }} onClick={() => setCameraDialogOpen(true)}>
         <CameraSwitch />
       </Fab>
       <CameraDialog open={cameraDialogOpen} onClose={() => setCameraDialogOpen(false)} camera={camera} onChange={setCamera} />

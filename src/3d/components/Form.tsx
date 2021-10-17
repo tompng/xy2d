@@ -81,7 +81,7 @@ const FormulaStatus = React.memo<{ progress?: FormulaProgress }>(({ progress }) 
   const { complete, error, resolution } = progress
   const rmessage = resolution === 0 ? '' : [resolution, resolution, resolution].join('×')
   const message = error || (complete ? '' : '...')
-  return <div style={{ position: 'absolute', left: 0, bottom: 0, color: error ? 'red' : '', fontSize: '10px' }}>
+  return <div style={{ position: 'absolute', left: 0, bottom: 0, color: error ? 'red' : '', fontSize: '12px' }}>
     {rmessage}{message}
   </div>
 })
