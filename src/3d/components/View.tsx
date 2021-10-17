@@ -40,34 +40,32 @@ export const View: React.VFC<{ onZoom: (radius: number) => void; watcher: Worker
   return (<div style={{ width, height }} ref={ref}></div>)
 }
 
-type FormulaInputType = {
-  id: string
-  text: string
-}
-
-export type FormulaState = {
+export type FormulaProgress = {
   resolution: number
   complete: boolean
   error: string | null
 }
 class PolygonizeWorker {
   worker = new Worker('./dist/worker3d.js')
-  state: FormulaState = {
+  state: FormulaProgress = {
     resolution: 0,
     complete: false,
     error: null
   }
-  geometry: THREE.BufferGeometry | null = null
-  constructor(public exp: string, public radius: number, public onChange: () => void) {
+  constructor(public text: string, public radius: number, public onChange: () => void, public geometry: THREE.BufferGeometry | null = null) {
     try {
       this.run()
     } catch (e) {
       this.state = { ...this.state, complete: true, error: String(e) }
+      if (this.state.resolution === 0) {
+        this.geometry?.dispose()
+        this.geometry = null
+      }
       this.onChange()
     }
   }
   run() {
-    const [ast] = parse(this.exp)
+    const [ast] = parse(this.text)
     const frange = astTo3DRangeFunction(ast, { pos: false, neg: false })
     const fvalue = astTo3DFunction(ast)
     const inputData: WorkerInput = { frange: frange.toString(), fvalue: fvalue.toString(), radius: this.radius }
@@ -97,40 +95,65 @@ class PolygonizeWorker {
   }
 }
 
-type WorkerWatcher = { workers: WorkerMap; onUpdate?: () => void }
-type WorkerMap = Map<string, PolygonizeWorker>
-export function useFormulas<Input extends FormulaInputType>(
-  inputs: Input[], radius: number
-): [Map<string, FormulaState>, WorkerWatcher] {
+type RenderingOption = { color?: string }
+
+type FormulaInputType = {
+  text: string
+  renderingOption?: RenderingOption
+}
+
+export type FormulaType = {
+  id: string
+  text: string
+  renderingOption: RenderingOption
+  progress?: FormulaProgress
+}
+type WorkerWatcher = {
+  workers: Map<string, PolygonizeWorker>
+  onUpdate?: () => void
+}
+
+function initialFormulas(originalInputs: FormulaInputType[]): FormulaType[] {
+  const inputs = [...originalInputs]
+  if (inputs.length === 0 || inputs[inputs.length - 1].text !== '') inputs.push({ text: '' })
+  return inputs.map(({ text, renderingOption }) => ({
+    id: String(Math.random()),
+    text,
+    renderingOption: renderingOption ?? {}
+  }))
+}
+export type SetFormulasType = (value: FormulaType[] | ((formulas: FormulaType[]) => FormulaType[])) => void
+export function useFormulas(
+  inputs: FormulaInputType[], radius: number
+): [FormulaType[], SetFormulasType, WorkerWatcher] {
+  const [formulas, setFormulas] = useState<FormulaType[]>(() => initialFormulas(inputs))
   const workersRef = useRef<WorkerWatcher>({ workers: new Map() })
-  const [formulas, setFormulas] = useState(() => new Map<string, FormulaState>())
   useEffect(() => {
     const workers = workersRef.current.workers
     const update = () => {
-      setFormulas(new Map([...workers.entries()].map(([id, worker]) => [id, worker.state])))
+      setFormulas(formulas => formulas.map(f => ({ ...f, progress: workers.get(f.id)?.state })))
       workersRef.current.onUpdate?.()
     }
     let changed = false
-    for (const { id, text } of inputs) {
+    for (const { id, text } of formulas) {
       let w = workers.get(id)
-      if (!w || w.exp !== text || w.radius !== radius) {
+      if (!w || w.text !== text || w.radius !== radius) {
         changed = true
-        const newWorker = new PolygonizeWorker(text, radius, update)
+        const newWorker = new PolygonizeWorker(text, radius, update, w?.geometry)
         if (w) {
-          newWorker.geometry = w.geometry
           w.geometry = null
           w.terminate()
         }
         workers.set(id, newWorker)
       }
     }
-    const ids = new Set(inputs.map(input => input.id))
+    const ids = new Set(formulas.map(f => f.id))
     for (const [id, w] of workers.entries()) {
       if (ids.has(id)) continue
       w.terminate()
       workers.delete(id)
     }
     if (changed) update()
-  }, [inputs, radius])
-  return [formulas, workersRef.current]
+  }, [formulas, radius])
+  return [formulas, setFormulas, workersRef.current]
 }

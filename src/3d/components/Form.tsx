@@ -2,15 +2,14 @@ import React, { useState, useRef, useReducer, useEffect, useCallback } from 'rea
 import { List, ListItem, ListItemAvatar, Avatar, TextField, ListItemText } from '@mui/material'
 import { DndContext, DragEndEvent, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
 import { arrayMove, SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable'
-import type { FormulaState } from './View'
+import type { FormulaType, FormulaProgress, SetFormulasType } from './View'
 type MathListItemProps = {
   formula: FormulaType
-  progress?: FormulaState
   update: (formula: FormulaType) => void
   delete: (formula: FormulaType) => void
 }
 
-const MathListItem: React.VFC<MathListItemProps> = ({ formula, update, progress }) => {
+const MathListItem: React.VFC<MathListItemProps> = ({ formula, update }) => {
   const [text, setText] = useState(formula.text)
   const submit = () => update({ ...formula, text })
   const sortable = useSortable({ id: formula.id })
@@ -36,14 +35,14 @@ const MathListItem: React.VFC<MathListItemProps> = ({ formula, update, progress 
               onBlur={submit}
             />
           </form>
-          {text && formula.text === text && <FormulaStatus progress={progress} />}
+          {text && formula.text === text && <FormulaStatus progress={formula.progress} />}
         </ListItemText>
       </ListItem>
     </div>
   )
 }
 
-const FormulaStatus: React.VFC<{ progress?: FormulaState }> = ({ progress }) => {
+const FormulaStatus: React.VFC<{ progress?: FormulaProgress }> = ({ progress }) => {
   if (!progress) return null
   const { complete, error, resolution } = progress
   const rmessage = resolution === 0 ? '' : [resolution, resolution, resolution].join('×')
@@ -53,13 +52,8 @@ const FormulaStatus: React.VFC<{ progress?: FormulaState }> = ({ progress }) => 
   </div>
 }
 
-export type FormulaType = {
-  id: string
-  text: string
-  other?: { color: string }
-}
 export function newFormula(text = ''): FormulaType {
-  return { id: String(Math.random()), text }
+  return { id: String(Math.random()), text, renderingOption: {} }
 }
 function normalizeFormulas(formulas: FormulaType[]) {
   const normalized = [...formulas]
@@ -70,10 +64,9 @@ function normalizeFormulas(formulas: FormulaType[]) {
 
 type MathListProps = {
   formulas: FormulaType[]
-  formulaStatus: Map<string, FormulaState>
-  setFormulas: (formulas: FormulaType[] | ((formulas: FormulaType[]) => FormulaType[])) => void
+  setFormulas: SetFormulasType
 }
-export const MathList: React.VFC<MathListProps> = ({ formulas, formulaStatus, setFormulas }) => {
+export const MathList: React.VFC<MathListProps> = ({ formulas, setFormulas }) => {
   const updateFormula = useCallback((formula: FormulaType) => {
     setFormulas(formulas => normalizeFormulas(formulas.map(f => (f.id === formula.id ? formula : f))))
   }, [])
@@ -107,7 +100,6 @@ export const MathList: React.VFC<MathListProps> = ({ formulas, formulaStatus, se
                 formula={formula}
                 update={updateFormula}
                 delete={deleteFormula}
-                progress={formulaStatus.get(formula.id)}
               />
             ))
           }
