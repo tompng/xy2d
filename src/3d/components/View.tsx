@@ -70,19 +70,15 @@ export const View = React.memo<ViewProps>(({ watcher, camera, onCameraChange, wi
     } else if(speed !== 0 && view.rotation?.speed !== speed) {
       view.rotation = { speed, theta: view.xyTheta, time: performance.now(), paused: false }
     }
-    if (view.zoomRadius !== camera.radius) {
+    if (view.renderRadius !== camera.radius) {
       view.renderRadius = view.zoomRadius = camera.radius
     }
     view.needsRender = true
   }, [camera])
   useEffect(() => {
     const view = viewRef.current!
-    view.onZoomChange = radius => {
-      onCameraChange({ ...camera, radius })
-    }
-    view.onCameraChange = (xyTheta, zTheta) => {
-      onCameraChange({ ...camera, xyTheta, zTheta })
-    }
+    view.onZoomChange = radius => onCameraChange({ ...camera, radius })
+    view.onCameraChange = (xyTheta, zTheta) => onCameraChange({ ...camera, xyTheta, zTheta })
   }, [camera, onCameraChange])
   useEffect(() => {
     viewRef.current?.setSize(width, height)

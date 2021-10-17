@@ -84,7 +84,7 @@ export class View {
   }
   bind() {
     const { domElement: dom } = this.renderer
-    let pointers: { id: number; x: number; y: number }[] = []
+    let pointers: { id: number; x: number; y: number, xyth: number, zth: number }[] = []
     let timer: number | null = null
     const lazyChangeZoom = (radius: number) => {
       this.zoomRadius = clamp(radius, zoomMinRadius, zoomMaxRadius)
@@ -97,7 +97,8 @@ export class View {
     dom.addEventListener('touchstart', e => e.preventDefault())
     dom.addEventListener('pointerdown', e => {
       e.preventDefault()
-      pointers.push({ id: e.pointerId, x: e.pageX, y: e.pageY })
+      pointers.push({ id: e.pointerId, x: e.pageX, y: e.pageY, xyth: this.xyTheta, zth: this.zTheta })
+      if (this.rotation) this.rotation.paused = true
       if (pointers.length >= 3) pointers.shift()
       if (document.activeElement !== document.body) (document.activeElement as { blur?: () => void } | null)?.blur?.()
     })
@@ -109,11 +110,11 @@ export class View {
       const dy = (e.pageY - pointer.y) / dom.offsetWidth * 4
       const center = { x: 0, y: 0 }
       if (pointers.length === 1) {
-        const xyTheta = this.xyTheta - dx
-        const zTheta = Math.min(Math.max(-Math.PI / 2, this.zTheta + dy), Math.PI / 2)
+        pointer.xyth -= dx
+        pointer.zth = Math.min(Math.max(-Math.PI / 2, pointer.zth + dy), Math.PI / 2)
         this.needsRender = true
-        if (this.rotation) this.rotation.paused = true
-        this.onCameraChange?.(xyTheta, zTheta)
+        pointer.xyth
+        this.onCameraChange?.(pointer.xyth, pointer.zth)
       } else {
         for (const { x, y } of pointers) {
           center.x += x / pointers.length
@@ -130,7 +131,7 @@ export class View {
     })
     const touchend = (e: PointerEvent) => {
       pointers = []
-      if (this.rotation?.paused) {
+      if (this.rotation) {
         this.rotation.paused = false
         this.rotation.theta = this.xyTheta
         this.rotation.time = performance.now()
