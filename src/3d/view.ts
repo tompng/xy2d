@@ -10,21 +10,41 @@ void main() {
 
 const fragmentShader = `
 varying vec3 vNormal;
+uniform vec3 color;
 void main() {
   float brightness = 0.5 + dot(vNormal, vec3(1, 2, 3)) / 8.0 * (2.0 * float(gl_FrontFacing) - 1.0);
-  gl_FragColor = vec4(vec3(brightness), 1);
+  gl_FragColor = vec4(color * brightness, 1);
 }
 `
 
-const material = new THREE.ShaderMaterial({
-  vertexShader,
-  fragmentShader,
-  side: THREE.DoubleSide
-})
-
-export function generateMesh(geometry: THREE.BufferGeometry) {
-  return new THREE.Mesh(geometry, material)
+export type RenderingOption = {
+  color?: string
 }
+export class SurfaceObject {
+  uniforms = { color: { value: new THREE.Color('white') } }
+  material: THREE.ShaderMaterial
+  mesh: THREE.Mesh
+  constructor(public geometry: THREE.BufferGeometry, public renderingOption: RenderingOption) {
+    this.update(renderingOption)
+    const material = new THREE.ShaderMaterial({
+      uniforms: this.uniforms,
+      vertexShader,
+      fragmentShader,
+      side: THREE.DoubleSide
+    })
+    this.material = material
+    this.mesh = new THREE.Mesh(geometry, material)
+  }
+  update(option: RenderingOption) {
+    this.renderingOption = option
+    this.uniforms.color.value = new THREE.Color(option.color ?? 'white')
+  }
+  dispose() {
+    this.material.dispose()
+    this.geometry.dispose()
+  }
+}
+
 const zoomMaxRadius = 256
 const zoomMinRadius = 1 / 64
 function clamp(value: number, min: number, max: number) {
@@ -36,6 +56,9 @@ export class View {
   scene = new THREE.Scene()
   xyTheta = 0
   zTheta = 0
+  cameraDistance = 1
+  rotation: { theta: number; time: number; speed: number; paused: boolean } | null = null
+  onCameraChange?: (xy: number, z: number) => void
   needsRender = true
   rendered = { pixelRatio: 0, width: 0, height: 0, radius: defaultRadius }
   width = 0
@@ -61,7 +84,7 @@ export class View {
   }
   bind() {
     const { domElement: dom } = this.renderer
-    let pointers: { id: number; x: number; y: number }[] = []
+    let pointers: { id: number; x: number; y: number, xyth: number, zth: number }[] = []
     let timer: number | null = null
     const lazyChangeZoom = (radius: number) => {
       this.zoomRadius = clamp(radius, zoomMinRadius, zoomMaxRadius)
@@ -74,7 +97,8 @@ export class View {
     dom.addEventListener('touchstart', e => e.preventDefault())
     dom.addEventListener('pointerdown', e => {
       e.preventDefault()
-      pointers.push({ id: e.pointerId, x: e.pageX, y: e.pageY })
+      pointers.push({ id: e.pointerId, x: e.pageX, y: e.pageY, xyth: this.xyTheta, zth: this.zTheta })
+      if (this.rotation) this.rotation.paused = true
       if (pointers.length >= 3) pointers.shift()
       if (document.activeElement !== document.body) (document.activeElement as { blur?: () => void } | null)?.blur?.()
     })
@@ -86,9 +110,11 @@ export class View {
       const dy = (e.pageY - pointer.y) / dom.offsetWidth * 4
       const center = { x: 0, y: 0 }
       if (pointers.length === 1) {
-        this.xyTheta -= dx
-        this.zTheta = Math.min(Math.max(-Math.PI / 2, this.zTheta + dy), Math.PI / 2)
+        pointer.xyth -= dx
+        pointer.zth = Math.min(Math.max(-Math.PI / 2, pointer.zth + dy), Math.PI / 2)
         this.needsRender = true
+        pointer.xyth
+        this.onCameraChange?.(pointer.xyth, pointer.zth)
       } else {
         for (const { x, y } of pointers) {
           center.x += x / pointers.length
@@ -103,8 +129,13 @@ export class View {
       pointer.x = e.pageX
       pointer.y = e.pageY
     })
-    function touchend(e: PointerEvent) {
-      pointers = pointers.filter(p => p.id !== e.pointerId)
+    const touchend = (e: PointerEvent) => {
+      pointers = []
+      if (this.rotation) {
+        this.rotation.paused = false
+        this.rotation.theta = this.xyTheta
+        this.rotation.time = performance.now()
+      }
     }
     document.addEventListener('pointercancel', touchend)
     document.addEventListener('pointerup', touchend)
@@ -139,20 +170,26 @@ export class View {
       rendered.radius = zoomRadius
       this.needsRender = true
     }
-    if (!this.needsRender) return
+    if (!this.needsRender && !this.rotation) return
+    let xyTheta2 = this.xyTheta
+    if (this.rotation && !this.rotation.paused) {
+      const { theta, time, speed } = this.rotation
+      xyTheta2 = theta + speed * (performance.now() - time) / 1000
+      this.onCameraChange?.(xyTheta2, this.zTheta)
+    }
     this.needsRender = false
     for (const obj of this.axisObjects) {
       obj.scale.set(this.zoomRadius, this.zoomRadius, this.zoomRadius)
     }
-    const distance = 3 * zoomRadius
+    const distance = 3 * zoomRadius * this.cameraDistance
     const fov = 50
     const verticalFOV = width > height ? fov : Math.atan(Math.tan(fov * Math.PI / 180 / 2) * height / width) * 360 / Math.PI
     const camera = new THREE.PerspectiveCamera(verticalFOV, width / height, distance / 64, distance * 2)
     const sz = Math.sin(zTheta)
     const cz = Math.cos(zTheta)
     camera.position.set(
-      distance * cz * Math.cos(xyTheta),
-      distance * cz * Math.sin(xyTheta),
+      distance * cz * Math.cos(xyTheta2),
+      distance * cz * Math.sin(xyTheta2),
       distance * sz
     )
     camera.up.set(0, 0, 1)

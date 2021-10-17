@@ -1,41 +1,7 @@
 <meta charset='utf-8'>
 <meta name='viewport' content='width=device-width,user-scalable=no,initial-scale=1.0,maximum-scale=1.0,minimum-scale=1.0'>
 <style>
-#mathinput {
-  font-size: 20px;
-  line-height: 36px;
-  height: 48px;
-  display: block;
-  width: 100%;
-}
-#error {
-  color: red;
-}
-#status {
-  color: black;
-}
-.header {
-  position: fixed;
-  left: 8px;
-  top: 8px;
-  right: 8px;
-  height: 64px;
-}
-.header .message {
-  font-size: 12px;
-  height: 16px;
-}
-.view {
-  position: fixed;
-  left: 8px;
-  top: 72px;
-  right: 8px;
-  bottom: 8px;
-}
+  body { position: fixed; }
 </style>
-<div class='header'>
-<input type=text value="sin4xcos4y+sin4ycos4z+sin4zcos4x=r^2/3" id="mathinput">
-<div class='message'><span id='error'></span><span id='status'></span></div>
-</div>
-<div class='view'></div>
+<div id='app'></div>
 <script src='dist/index3d.js'></script>

@@ -2,7 +2,7 @@ module.exports = {
   mode: 'development',
   entry: {
     index2d: './src/2d/index.ts',
-    index3d: './src/3d/index.ts',
+    index3d: './src/3d/index.tsx',
     worker3d: './src/3d/worker.ts'
   },
   output: {
@@ -12,7 +12,7 @@ module.exports = {
   module: {
     rules: [
       {
-        test: /\.ts$/,
+        test: /\.tsx?$/,
         use: 'ts-loader'
       },
       {
@@ -22,6 +22,6 @@ module.exports = {
     ]
   },
   resolve: {
-    extensions: ['.ts', '.js']
+    extensions: ['.ts', '.tsx', '.js']
   }
 }
