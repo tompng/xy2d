@@ -63,6 +63,15 @@ function getInitialFormula() {
 }
 const [initialFormulas, initialRadius] = getInitialFormula()
 
+let replaceStateTimer: number | null = null
+function replacePath(path: string) {
+  if (replaceStateTimer != null) clearTimeout(replaceStateTimer)
+  replaceStateTimer = setTimeout(() => {
+    replaceStateTimer = null
+    history.replaceState({}, '', path)
+  }, 500) as unknown as number
+}
+
 export const App: React.VFC = () => {
   const [height, setHeight] = useState(formulaAreaInitialHeight)
   const windowSize = useWindowSize()
@@ -81,7 +90,7 @@ export const App: React.VFC = () => {
     const last = formatted[formatted.length - 1]
     if (last && !last.color && !last.color) formatted.pop()
     const path = location.pathname + `?r=${camera.radius}&f=${encodeURIComponent(JSON.stringify(formatted))}`
-    history.replaceState({}, '', path)
+    replacePath(path)
   }, [formulas, camera.radius])
   return (
     <>
