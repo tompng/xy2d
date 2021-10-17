@@ -4,7 +4,7 @@ import { MathList } from './Form'
 import {
   Slider, Input,
   Dialog, DialogTitle, DialogContent,
-  Fab, IconButton, Box, Grid, Typography
+  Fab, IconButton, Button, Box, Grid, Typography
 } from '@mui/material'
 import CloseIcon from '@mui/icons-material/Close'
 import CameraSwitch from '@mui/icons-material/CameraSwitch'
@@ -166,51 +166,39 @@ const CameraDialog = React.memo<CameraDialogProps>(({ open, onClose, camera, onC
         <CameraSlider title="Distance" min={0.5} scale={10} max={1.5} step={0.1} value={camera.distance} onChange={distance => onChange({ ...camera, distance })} />
         <CameraSlider title="Yaw" min={0} max={360} step={1} value={yaw} onChange={v => onChange({ ...camera, xyTheta: v * Math.PI / 180, rotate: 0 })} />
         <CameraSlider title="Pitch" min={-90} max={90} step={1} value={pitch} onChange={v => onChange({ ...camera, zTheta: v * Math.PI / 180, rotate: 0 })} />
-        <NumberInput title="Rotate Speed" min={-8} max={8} step={1} value={camera.rotate} onChange={rotate => onChange({ ...camera, rotate })} />
-        <NumberInput title="Rendering Radius" min={0.001} step={0.001} max={1000} value={camera.radius} onChange={radius => onChange({ ...camera, radius })} />
+        <RotationInput min={-8} max={8} step={1} value={camera.rotate} onChange={rotate => onChange({ ...camera, rotate })} />
+        <NumberInput title="Calculation Range" min={0.001} step={0.001} max={1000} value={camera.radius} onChange={radius => onChange({ ...camera, radius })} />
       </DialogContent>
     </Dialog>
   )
 })
 
-const NumberInput = React.memo<{ title: string; value: number; min: number; max: number; step: number; onChange: (v: number) => void }>(({
-  title, value, step, min, max, onChange
-}) => {
-  const handleChange = (value: number) => {
-    if (value < min) value = min
-    if (value > max) value = max
-    if (!isNaN(value)) onChange(value)
-  }
-  const [textValue, setTextValue] = useState(value.toFixed(4))
+function useNumberFieldHandler(value: number, onChange: (value: number) => void, min: number, max: number) {
+  const [textValue, setTextValue] = useState(String(value))
+  const handleChange = useCallback((input: string | number, changeText?: boolean) => {
+    let newValue = typeof input === 'string' ? parseFloat(input) : input
+    if (isNaN(newValue)) newValue = value
+    if (newValue < min) newValue = min
+    if (max < newValue) newValue = max
+    onChange(newValue)
+    if (changeText) {
+      setTextValue(String(newValue))
+    } else {
+      setTextValue(String(input))
+    }
+  }, [min, max, onChange])
+  const [locked, setLocked] = useState(false)
   useEffect(() => {
-    if (parseFloat(textValue).toFixed(4) !== value.toFixed(4)) setTextValue(value.toFixed(4))
-  }, [value])
-  return (
-    <Box sx={{ width: 250 }}>
-      <Typography gutterBottom>
-        {title}
-      </Typography>
-      <Input
-        value={textValue}
-        fullWidth
-        onChange={e => { setTextValue(e.target.value); handleChange(parseFloat(e.target.value)) }}
-        inputProps={{ step, min, max, type: 'number' }}
-      />
-    </Box>
-  )
-})
+    if (!locked) setTextValue(String(value))
+  }, [locked, value])
+  return [textValue, handleChange, setLocked] as const
+}
 
 const CameraSlider = React.memo<{ title: string; value: number; min: number; step: number; scale?: number; max: number; onChange: (v: number) => void }>(({
   title, value, step, min, max, onChange, scale
 }) => {
   const sliderScale = scale ?? 1
-  const handleChange = (value: number) => {
-    if (min <= value && value <= max) onChange(value)
-  }
-  const [textValue, setTextValue] = useState(value.toFixed(2))
-  useEffect(() => {
-    if (parseFloat(textValue).toFixed(2) !== value.toFixed(2)) setTextValue(value.toFixed(2))
-  }, [value])
+  const [textValue, handleChange, setLocked] = useNumberFieldHandler(value, onChange, min, max)
   return (
     <Box sx={{ width: 250 }}>
       <Typography gutterBottom>
@@ -228,7 +216,58 @@ const CameraSlider = React.memo<{ title: string; value: number; min: number; ste
           <Input
             value={textValue}
             fullWidth
-            onChange={e => { setTextValue(e.target.value); handleChange(parseFloat(e.target.value)) }}
+            onChange={e => { handleChange(e.target.value) }}
+            onFocus={() => setLocked(true)}
+            onBlur={e => { handleChange(e.target.value, true); setLocked(false) }}
+            inputProps={{ step, min, max, type: 'number' }}
+          />
+        </Grid>
+      </Grid>
+    </Box>
+  )
+})
+
+const NumberInput = React.memo<{ title: string; value: number; min: number; max: number; step: number; onChange: (v: number) => void }>(({
+  title, value, step, min, max, onChange
+}) => {
+  const [textValue, handleChange, setLocked] = useNumberFieldHandler(value, onChange, min, max)
+  return (
+    <Box sx={{ width: 250 }}>
+      <Typography gutterBottom>
+        {title}
+      </Typography>
+      <Input
+        value={textValue}
+        fullWidth
+        onChange={e => handleChange(e.target.value) }
+        onFocus={() => setLocked(true)}
+        onBlur={e => { handleChange(e.target.value, true); setLocked(false) }}
+        inputProps={{ step, min, max, type: 'number' }}
+      />
+    </Box>
+  )
+})
+
+const RotationInput = React.memo<{ value: number; min: number; max: number; step: number; onChange: (v: number) => void }>(({
+  value, step, min, max, onChange
+}) => {
+  const [textValue, handleChange, setLocked] = useNumberFieldHandler(value, onChange, min, max)
+  return (
+    <Box sx={{ width: 250 }}>
+      <Typography gutterBottom>
+        Rotate Speed
+      </Typography>
+      <Grid container spacing={2} alignItems="center">
+        <Grid item xs={4}>
+          <Button disabled={value === 0} onClick={() => handleChange(0)}>stop</Button>
+        </Grid>
+        <Grid item xs={8}>
+          <Input
+            value={textValue}
+            fullWidth
+            onChange={e => handleChange(e.target.value) }
+            onFocus={() => setLocked(true)}
+            onBlur={e => { handleChange(e.target.value, true); setLocked(false) }}
             inputProps={{ step, min, max, type: 'number' }}
           />
         </Grid>
