@@ -118,7 +118,9 @@ const CameraDialog = React.memo<CameraDialogProps>(({ open, onClose, camera, onC
     <Dialog open={open} onClose={onClose}>
       <DialogTitle>
         Camera Settings
-        <IconButton aria-label="close" onClick={onClose}><CloseIcon /></IconButton>
+        <IconButton aria-label="close" onClick={onClose} sx={{ position: 'absolute', right: 8, top: 8 }}>
+          <CloseIcon />
+        </IconButton>
       </DialogTitle>
       <DialogContent>
         <CameraSlider title="Distance" min={0.5} scale={10} max={1.5} step={0.1} value={camera.distance} onChange={distance => onChange({ ...camera, distance })} />
@@ -142,31 +144,24 @@ const CameraSlider = React.memo<{ title: string; value: number; min: number; ste
     if (parseFloat(textValue).toFixed(2) !== value.toFixed(2)) setTextValue(value.toFixed(2))
   }, [value])
   return (
-    <Box>
-      <Typography id="input-slider" gutterBottom>
+    <Box sx={{ width: 250 }}>
+      <Typography gutterBottom>
         {title}
       </Typography>
       <Grid container spacing={2} alignItems="center">
-        <Grid item xs>
+        <Grid item xs={8}>
           <Slider
             value={value * sliderScale}
             min={min * sliderScale} max={max * sliderScale}
             onChange={(_e, v) => handleChange((v as number) / sliderScale)}
-            aria-labelledby="input-slider"
           />
         </Grid>
-        <Grid item>
+        <Grid item xs={4}>
           <Input
             value={textValue}
-            size="small"
+            fullWidth
             onChange={e => { setTextValue(e.target.value); handleChange(parseFloat(e.target.value)) }}
-            inputProps={{
-              step,
-              min,
-              max,
-              type: 'number',
-              'aria-labelledby': 'input-slider',
-            }}
+            inputProps={{ step, min, max, type: 'number' }}
           />
         </Grid>
       </Grid>

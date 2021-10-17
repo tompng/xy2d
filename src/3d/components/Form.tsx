@@ -143,7 +143,9 @@ const ColorDialog = React.memo<{ open: boolean; onClose: () => void; color: stri
     <Dialog open={open} onClose={onClose}>
       <DialogTitle>
         Surface Color
-        <IconButton aria-label="close" onClick={onClose}><CloseIcon /></IconButton>
+        <IconButton aria-label="close" onClick={onClose} sx={{ position: 'absolute', right: 8, top: 8 }}>
+          <CloseIcon />
+        </IconButton>
       </DialogTitle>
       <DialogContent>
         <ColorPicker color={color} onChange={onChange} />
@@ -180,32 +182,26 @@ const RedSlider = createColoredSlider('#f44')
 const GreenSlider = createColoredSlider('#4f4')
 const BlueSlider = createColoredSlider('#44f')
 type SliderComponentType = ReturnType<typeof createColoredSlider>
-const ColorSlider = React.memo<{ SliderComponent: SliderComponentType; value: number; onChange: (value: number) => void }>(({ SliderComponent, value, onChange }) => {
+type ColorSliderProps = { SliderComponent: SliderComponentType; value: number; onChange: (value: number) => void }
+const ColorSlider = React.memo<ColorSliderProps>(({ SliderComponent, value, onChange }) => {
   const handleChange = (value: number) => {
     if (0 <= value && value <= 255) onChange(value)
   }
   return (
-    <Grid container spacing={2} alignItems="center">
-      <Grid item xs>
+    <Grid container spacing={2} alignItems="center" sx={{ width: 250 }}>
+      <Grid item xs={8}>
         <SliderComponent
           value={value}
           min={0} max={255}
           onChange={(_e, v) => handleChange(v as number)}
-          aria-labelledby="input-slider"
         />
       </Grid>
-      <Grid item>
+      <Grid item xs={4}>
         <Input
           value={value}
-          size="small"
+          fullWidth
           onChange={e => handleChange(parseInt(e.target.value))}
-          inputProps={{
-            step: 15,
-            min: 0,
-            max: 255,
-            type: 'number',
-            'aria-labelledby': 'input-slider',
-          }}
+          inputProps={{ step: 15, min: 0, max: 255, type: 'number' }}
         />
       </Grid>
     </Grid>
