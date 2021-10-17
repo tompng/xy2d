@@ -109,11 +109,11 @@ export class View {
       const dy = (e.pageY - pointer.y) / dom.offsetWidth * 4
       const center = { x: 0, y: 0 }
       if (pointers.length === 1) {
-        this.xyTheta -= dx
-        this.zTheta = Math.min(Math.max(-Math.PI / 2, this.zTheta + dy), Math.PI / 2)
+        const xyTheta = this.xyTheta - dx
+        const zTheta = Math.min(Math.max(-Math.PI / 2, this.zTheta + dy), Math.PI / 2)
         this.needsRender = true
         if (this.rotation) this.rotation.paused = true
-        this.onCameraChange?.(this.xyTheta, this.zTheta)
+        this.onCameraChange?.(xyTheta, zTheta)
       } else {
         for (const { x, y } of pointers) {
           center.x += x / pointers.length
@@ -170,10 +170,11 @@ export class View {
       this.needsRender = true
     }
     if (!this.needsRender && !this.rotation) return
+    let xyTheta2 = this.xyTheta
     if (this.rotation && !this.rotation.paused) {
       const { theta, time, speed } = this.rotation
-      this.xyTheta = theta + speed * (performance.now() - time) / 1000
-      this.onCameraChange?.(this.xyTheta, this.zTheta)
+      xyTheta2 = theta + speed * (performance.now() - time) / 1000
+      this.onCameraChange?.(xyTheta2, this.zTheta)
     }
     this.needsRender = false
     for (const obj of this.axisObjects) {
@@ -186,8 +187,8 @@ export class View {
     const sz = Math.sin(zTheta)
     const cz = Math.cos(zTheta)
     camera.position.set(
-      distance * cz * Math.cos(xyTheta),
-      distance * cz * Math.sin(xyTheta),
+      distance * cz * Math.cos(xyTheta2),
+      distance * cz * Math.sin(xyTheta2),
       distance * sz
     )
     camera.up.set(0, 0, 1)

@@ -102,7 +102,6 @@ export const MathList: React.VFC<MathListProps> = ({ formulas, setFormulas }) =>
       })
     }
   }, [])
-  const [color,setColor]=useState('#aabbcc')
   return (
     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
       <SortableContext items={formulas} strategy={verticalListSortingStrategy}>

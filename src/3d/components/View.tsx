@@ -5,7 +5,7 @@ import { View as WGLView, RenderingOption, SurfaceObject } from '../view'
 import type { WorkerInput, WorkerOutput } from '../worker'
 import * as THREE from 'three'
 
-type Camera = {
+export type Camera = {
   distance: number
   xyTheta: number
   zTheta: number
@@ -64,7 +64,7 @@ export const View: React.VFC<ViewProps> = ({ watcher, camera, onCameraChange, wi
     view.xyTheta = camera.xyTheta
     view.zTheta = camera.zTheta
     view.cameraDistance = camera.distance
-    const speed = camera.rotate ** 3 / 8
+    const speed = camera.rotate ** 3 / 64
     if (speed === 0 && view.rotation?.speed) {
       view.rotation = null
     } else if(speed !== 0 && view.rotation?.speed !== speed) {
@@ -80,8 +80,8 @@ export const View: React.VFC<ViewProps> = ({ watcher, camera, onCameraChange, wi
     view.onZoomChange = radius => {
       onCameraChange({ ...camera, radius })
     }
-    view.onCameraChange = () => {
-      onCameraChange({ ...camera, xyTheta: view.xyTheta, zTheta: view.zTheta })
+    view.onCameraChange = (xyTheta, zTheta) => {
+      onCameraChange({ ...camera, xyTheta, zTheta })
     }
   }, [camera, onCameraChange])
   useEffect(() => {
