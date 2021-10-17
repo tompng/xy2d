@@ -26,14 +26,34 @@ const MathListItem = React.memo<MathListItemProps>(({ formula, update }) => {
   const [dialogOpen, setDialogOpen] = useState(false)
   return (
     <div ref={sortable.setNodeRef} style={dndStyle}>
-      <ListItem >
-        <ListItemAvatar style={{ touchAction: 'none', cursor: 'move' }} {...sortable.listeners} {...sortable.attributes}>
+      <ListItem>
+        <div
+          style={{
+            touchAction: 'none',
+            cursor: 'move',
+            position: 'relative',
+            flexShrink: 0,
+            width: 64,
+            height: 80,
+            marginLeft: -16
+          }}
+          {...sortable.listeners}
+          {...sortable.attributes}
+          tabIndex={undefined}
+        >
           <ClickableInsideDND onClick={() => setDialogOpen(true)}>
-            <Avatar style={{ color: formula.renderingOption.color ?? 'white' }}>
-              あ
-            </Avatar>
+            <div style={{
+              backgroundColor: formula.renderingOption.color ?? 'white',
+              position: 'absolute',
+              left: 16,
+              top: 16,
+              width: 32,
+              height: 32,
+              borderRadius: '50%',
+              border: '2px solid gray'
+            }} />
           </ClickableInsideDND>
-        </ListItemAvatar>
+        </div>
         <ListItemText style={{ position: 'relative' }}>
           <form onSubmit={e => { e.preventDefault(); submit()}}>
             <TextField
