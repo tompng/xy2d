@@ -46,6 +46,7 @@ export const App: React.VFC = () => {
   const [camera, setCamera] = useState({ xyTheta: 0.5, zTheta: 0.1, distance: 1, radius: 1, rotate: 0 })
   const [formulas, setFormulas, watcher] = useFormulas([{ text: 'sin4xcos4y+sin4ycos4z+sin4zcos4x=r^2/3' }], camera.radius)
   const [cameraDialogOpen, setCameraDialogOpen] = useState(false)
+  const radiusString = camera.radius.toFixed(Math.max(-Math.round(Math.log10(camera.radius)) + 2, 0))
   return (
     <>
       <div style={{ position: 'fixed', left: 0, top: 0 }}>
@@ -57,6 +58,9 @@ export const App: React.VFC = () => {
       <AreaDragHandler y={-height} onDragMove={onDragMove}>
         <div style={{ position: 'fixed', cursor: 'ns-resize', left: 0, bottom: height - 8, width: '100%', height: 32 }}></div>
       </AreaDragHandler>
+      <div style={{ position: 'fixed', right: 72, bottom: height + 8, color: 'gray', fontSize: '14px' }}>
+        (-{radiusString} &lt; x, y, z &lt; {radiusString})
+      </div>
       <Fab style={{ position: 'fixed', left: 8, bottom: height + 8 }} onClick={() => setHeight(height === 0 ? formulaAreaInitialHeight() : 0)}>
         {height === 0 ? <KeyboardArrowUpRounded /> : <KeyboardArrowDownRounded />}
       </Fab>
@@ -125,14 +129,42 @@ const CameraDialog = React.memo<CameraDialogProps>(({ open, onClose, camera, onC
       <DialogContent>
         <CameraSlider title="Distance" min={0.5} scale={10} max={1.5} step={0.1} value={camera.distance} onChange={distance => onChange({ ...camera, distance })} />
         <CameraSlider title="Yaw" min={0} max={360} step={1} value={yaw} onChange={v => onChange({ ...camera, xyTheta: v * Math.PI / 180, rotate: 0 })} />
-        <CameraSlider title="Pitch" min={-90} max={90} step={1} value={pitch} onChange={v => onChange({ ...camera, zTheta: v * Math.PI / 180 })} />
-        <CameraSlider title="Rotate Speed" min={-4} max={4} step={1} value={camera.rotate} onChange={rotate => onChange({ ...camera, rotate })} />
+        <CameraSlider title="Pitch" min={-90} max={90} step={1} value={pitch} onChange={v => onChange({ ...camera, zTheta: v * Math.PI / 180, rotate: 0 })} />
+        <NumberInput title="Rotate Speed" min={-8} max={8} step={1} value={camera.rotate} onChange={rotate => onChange({ ...camera, rotate })} />
+        <NumberInput title="Rendering Radius" min={0.001} step={0.001} max={1000} value={camera.radius} onChange={radius => onChange({ ...camera, radius })} />
       </DialogContent>
     </Dialog>
   )
 })
 
-const CameraSlider = React.memo<{ title: string; value: number; min: number; step: number; scale?: number; max: number; mod?: boolean; onChange: (v: number) => void }>(({
+const NumberInput = React.memo<{ title: string; value: number; min: number; max: number; step: number; onChange: (v: number) => void }>(({
+  title, value, step, min, max, onChange
+}) => {
+  const handleChange = (value: number) => {
+    if (value < min) value = min
+    if (value > max) value = max
+    if (!isNaN(value)) onChange(value)
+  }
+  const [textValue, setTextValue] = useState(value.toFixed(4))
+  useEffect(() => {
+    if (parseFloat(textValue).toFixed(4) !== value.toFixed(4)) setTextValue(value.toFixed(4))
+  }, [value])
+  return (
+    <Box sx={{ width: 250 }}>
+      <Typography gutterBottom>
+        {title}
+      </Typography>
+      <Input
+        value={textValue}
+        fullWidth
+        onChange={e => { setTextValue(e.target.value); handleChange(parseFloat(e.target.value)) }}
+        inputProps={{ step, min, max, type: 'number' }}
+      />
+    </Box>
+  )
+})
+
+const CameraSlider = React.memo<{ title: string; value: number; min: number; step: number; scale?: number; max: number; onChange: (v: number) => void }>(({
   title, value, step, min, max, onChange, scale
 }) => {
   const sliderScale = scale ?? 1
