@@ -5,20 +5,28 @@ import { View as WGLView, RenderingOption, SurfaceObject } from '../view'
 import type { WorkerInput, WorkerOutput } from '../worker'
 import * as THREE from 'three'
 
+type Camera = {
+  distance: number
+  xyTheta: number
+  zTheta: number
+  rotate: number
+  radius: number
+}
+
 type ViewProps = {
-  onZoom: (radius: number) => void
   watcher: WorkerWatcher
   width: number
   height: number
+  camera: Camera
+  onCameraChange: (camera: Camera) => void
 }
-export const View: React.VFC<ViewProps> = ({ onZoom, watcher, width, height }) => {
+export const View: React.VFC<ViewProps> = ({ watcher, camera, onCameraChange, width, height }) => {
   const ref = useRef<HTMLDivElement>(null)
   const viewRef = useRef<WGLView>()
   useEffect(() => {
     const view = new WGLView()
     viewRef.current = view
     ref.current?.appendChild(view.renderer.domElement)
-    view.onZoomChange = onZoom
     const meshes = new Map<string, SurfaceObject>()
     watcher.onUpdate = () => {
       for (const [id, worker] of watcher.workers.entries()) {
@@ -46,8 +54,36 @@ export const View: React.VFC<ViewProps> = ({ onZoom, watcher, width, height }) =
       view.needsRender = true
       view.render()
     }
-    // cannot dispose threejs renderer (view.renderer.dispose() doesnot realy release it)
+    return () => {
+      // webglrenderer.dispose() doesnot realy release it
+      console.error('cannot dispose threejs renderer')
+    }
   }, [])
+  useEffect(() => {
+    const view = viewRef.current!
+    view.xyTheta = camera.xyTheta
+    view.zTheta = camera.zTheta
+    view.cameraDistance = camera.distance
+    const speed = camera.rotate ** 3 / 8
+    if (speed === 0 && view.rotation?.speed) {
+      view.rotation = null
+    } else if(speed !== 0 && view.rotation?.speed !== speed) {
+      view.rotation = { speed, theta: view.xyTheta, time: performance.now(), paused: false }
+    }
+    if (view.zoomRadius !== camera.radius) {
+      view.renderRadius = view.zoomRadius = camera.radius
+    }
+    view.needsRender = true
+  }, [camera])
+  useEffect(() => {
+    const view = viewRef.current!
+    view.onZoomChange = radius => {
+      onCameraChange({ ...camera, radius })
+    }
+    view.onCameraChange = () => {
+      onCameraChange({ ...camera, xyTheta: view.xyTheta, zTheta: view.zTheta })
+    }
+  }, [camera, onCameraChange])
   useEffect(() => {
     viewRef.current?.setSize(width, height)
   }, [width, height])

@@ -58,7 +58,7 @@ export class View {
   zTheta = 0
   cameraDistance = 1
   rotation: { theta: number; time: number; speed: number; paused: boolean } | null = null
-  onChangeCamera?: (xy: number, z: number) => void
+  onCameraChange?: (xy: number, z: number) => void
   needsRender = true
   rendered = { pixelRatio: 0, width: 0, height: 0, radius: defaultRadius }
   width = 0
@@ -113,7 +113,7 @@ export class View {
         this.zTheta = Math.min(Math.max(-Math.PI / 2, this.zTheta + dy), Math.PI / 2)
         this.needsRender = true
         if (this.rotation) this.rotation.paused = true
-        this.onChangeCamera?.(this.xyTheta, this.zTheta)
+        this.onCameraChange?.(this.xyTheta, this.zTheta)
       } else {
         for (const { x, y } of pointers) {
           center.x += x / pointers.length
@@ -169,11 +169,11 @@ export class View {
       rendered.radius = zoomRadius
       this.needsRender = true
     }
-    if (!this.needsRender && !this.rotation?.speed) return
-    if (this.rotation?.speed && !this.rotation.paused) {
+    if (!this.needsRender && !this.rotation) return
+    if (this.rotation && !this.rotation.paused) {
       const { theta, time, speed } = this.rotation
       this.xyTheta = theta + speed * (performance.now() - time) / 1000
-      this.onChangeCamera?.(this.xyTheta, this.zTheta)
+      this.onCameraChange?.(this.xyTheta, this.zTheta)
     }
     this.needsRender = false
     for (const obj of this.axisObjects) {

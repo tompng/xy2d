@@ -6,7 +6,6 @@ import { Fab } from '@mui/material'
 import KeyboardArrowDownRounded from '@mui/icons-material/KeyboardArrowDownRounded'
 import KeyboardArrowUpRounded from '@mui/icons-material/KeyboardArrowUpRounded'
 
-
 function useWindowSize() {
   const [windowSize, setWindowSize] = useState({ width: innerWidth, height: innerHeight })
   const ref = useRef(windowSize)
@@ -39,12 +38,12 @@ export const App: React.VFC = () => {
     if (h < 0 || (complete && h < 30)) h = 0
     setHeight(Math.min(h, innerHeight - 100))
   }, [])
-  const [radius, setRadius] = useState(1)
-  const [formulas, setFormulas, watcher] = useFormulas([{ text: 'sin4xcos4y+sin4ycos4z+sin4zcos4x=r^2/3' }], radius)
+  const [camera, setCamera] = useState({ xyTheta: 0.5, zTheta: 0.1, distance: 1, radius: 1, rotate: 0 })
+  const [formulas, setFormulas, watcher] = useFormulas([{ text: 'sin4xcos4y+sin4ycos4z+sin4zcos4x=r^2/3' }], camera.radius)
   return (
     <>
       <div style={{ position: 'fixed', left: 0, top: 0 }}>
-        <View watcher={watcher} onZoom={setRadius} width={windowSize.width} height={windowSize.height - height} />
+        <View watcher={watcher} camera={camera} onCameraChange={setCamera} width={windowSize.width} height={windowSize.height - height} />
       </div>
       <div style={{ position: 'fixed', left: 0, bottom: 0, width: '100%', height, background: 'white', overflow: 'auto' }}>
         <MathList formulas={formulas} setFormulas={setFormulas} />
