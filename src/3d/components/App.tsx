@@ -1,6 +1,11 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { useFormulas, View } from './View'
 import { MathList } from './Form'
+import { Fab } from '@mui/material'
+
+import KeyboardArrowDownRounded from '@mui/icons-material/KeyboardArrowDownRounded'
+import KeyboardArrowUpRounded from '@mui/icons-material/KeyboardArrowUpRounded'
+
 
 function useWindowSize() {
   const [windowSize, setWindowSize] = useState({ width: innerWidth, height: innerHeight })
@@ -47,15 +52,9 @@ export const App: React.VFC = () => {
       <AreaDragHandler y={-height} onDragMove={onDragMove}>
         <div style={{ position: 'fixed', cursor: 'ns-resize', left: 0, bottom: height - 8, width: '100%', height: 32 }}></div>
       </AreaDragHandler>
-      <AreaDragHandler y={-height} onDragMove={onDragMove} onClick={() => setHeight(h => h === 0 ? formulaAreaInitialHeight() : 0) }>
-        <div style={{
-          position: 'fixed', cursor: 'pointer', left: 8, bottom: height + 8, width: 40, height: 40,
-          borderRadius: '50%',
-          background: 'white',
-          boxShadow: '1px 1px 2px rgba(0, 0, 0, 0.5)'
-        }}>
-        </div>
-      </AreaDragHandler>
+      <Fab style={{ position: 'fixed', left: 8, bottom: height + 8 }} onClick={() => setHeight(height === 0 ? formulaAreaInitialHeight() : 0)}>
+        {height === 0 ? <KeyboardArrowUpRounded /> : <KeyboardArrowDownRounded />}
+      </Fab>
     </>
   )
 }
