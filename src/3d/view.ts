@@ -56,6 +56,9 @@ export class View {
   scene = new THREE.Scene()
   xyTheta = 0
   zTheta = 0
+  cameraDistance = 1
+  rotation: { theta: number; time: number; speed: number; paused: boolean } | null = null
+  onChangeCamera?: (xy: number, z: number) => void
   needsRender = true
   rendered = { pixelRatio: 0, width: 0, height: 0, radius: defaultRadius }
   width = 0
@@ -109,6 +112,8 @@ export class View {
         this.xyTheta -= dx
         this.zTheta = Math.min(Math.max(-Math.PI / 2, this.zTheta + dy), Math.PI / 2)
         this.needsRender = true
+        if (this.rotation) this.rotation.paused = true
+        this.onChangeCamera?.(this.xyTheta, this.zTheta)
       } else {
         for (const { x, y } of pointers) {
           center.x += x / pointers.length
@@ -123,8 +128,13 @@ export class View {
       pointer.x = e.pageX
       pointer.y = e.pageY
     })
-    function touchend(e: PointerEvent) {
-      pointers = pointers.filter(p => p.id !== e.pointerId)
+    const touchend = (e: PointerEvent) => {
+      pointers = []
+      if (this.rotation?.paused) {
+        this.rotation.paused = false
+        this.rotation.theta = this.xyTheta
+        this.rotation.time = performance.now()
+      }
     }
     document.addEventListener('pointercancel', touchend)
     document.addEventListener('pointerup', touchend)
@@ -159,12 +169,17 @@ export class View {
       rendered.radius = zoomRadius
       this.needsRender = true
     }
-    if (!this.needsRender) return
+    if (!this.needsRender && !this.rotation?.speed) return
+    if (this.rotation?.speed && !this.rotation.paused) {
+      const { theta, time, speed } = this.rotation
+      this.xyTheta = theta + speed * (performance.now() - time) / 1000
+      this.onChangeCamera?.(this.xyTheta, this.zTheta)
+    }
     this.needsRender = false
     for (const obj of this.axisObjects) {
       obj.scale.set(this.zoomRadius, this.zoomRadius, this.zoomRadius)
     }
-    const distance = 3 * zoomRadius
+    const distance = 3 * zoomRadius * this.cameraDistance
     const fov = 50
     const verticalFOV = width > height ? fov : Math.atan(Math.tan(fov * Math.PI / 180 / 2) * height / width) * 360 / Math.PI
     const camera = new THREE.PerspectiveCamera(verticalFOV, width / height, distance / 64, distance * 2)
