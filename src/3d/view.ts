@@ -10,21 +10,41 @@ void main() {
 
 const fragmentShader = `
 varying vec3 vNormal;
+uniform vec3 color;
 void main() {
   float brightness = 0.5 + dot(vNormal, vec3(1, 2, 3)) / 8.0 * (2.0 * float(gl_FrontFacing) - 1.0);
-  gl_FragColor = vec4(vec3(brightness), 1);
+  gl_FragColor = vec4(color * brightness, 1);
 }
 `
 
-const material = new THREE.ShaderMaterial({
-  vertexShader,
-  fragmentShader,
-  side: THREE.DoubleSide
-})
-
-export function generateMesh(geometry: THREE.BufferGeometry) {
-  return new THREE.Mesh(geometry, material)
+export type RenderingOption = {
+  color?: string
 }
+export class SurfaceObject {
+  uniforms = { color: { value: new THREE.Color('white') } }
+  material: THREE.ShaderMaterial
+  mesh: THREE.Mesh
+  constructor(public geometry: THREE.BufferGeometry, public renderingOption: RenderingOption) {
+    this.update(renderingOption)
+    const material = new THREE.ShaderMaterial({
+      uniforms: this.uniforms,
+      vertexShader,
+      fragmentShader,
+      side: THREE.DoubleSide
+    })
+    this.material = material
+    this.mesh = new THREE.Mesh(geometry, material)
+  }
+  update(option: RenderingOption) {
+    this.renderingOption = option
+    this.uniforms.color.value = new THREE.Color(option.color ?? 'white')
+  }
+  dispose() {
+    this.material.dispose()
+    this.geometry.dispose()
+  }
+}
+
 const zoomMaxRadius = 256
 const zoomMinRadius = 1 / 64
 function clamp(value: number, min: number, max: number) {

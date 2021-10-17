@@ -1,11 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { astTo3DFunction, astTo3DRangeFunction } from '../../core/ast'
 import { parse } from '../../core/parser'
-import { View as WGLView, generateMesh } from '../view'
+import { View as WGLView, RenderingOption, SurfaceObject } from '../view'
 import type { WorkerInput, WorkerOutput } from '../worker'
 import * as THREE from 'three'
 
-export const View: React.VFC<{ onZoom: (radius: number) => void; watcher: WorkerWatcher; width: number; height: number }> = ({ onZoom, watcher, width, height }) => {
+type ViewProps = {
+  onZoom: (radius: number) => void
+  watcher: WorkerWatcher
+  width: number
+  height: number
+}
+export const View: React.VFC<ViewProps> = ({ onZoom, watcher, width, height }) => {
   const ref = useRef<HTMLDivElement>(null)
   const viewRef = useRef<WGLView>()
   useEffect(() => {
@@ -13,17 +19,25 @@ export const View: React.VFC<{ onZoom: (radius: number) => void; watcher: Worker
     viewRef.current = view
     ref.current?.appendChild(view.renderer.domElement)
     view.onZoomChange = onZoom
-    const meshes = new Map<string, { mesh: THREE.Mesh, geom: THREE.BufferGeometry }>()
+    const meshes = new Map<string, SurfaceObject>()
     watcher.onUpdate = () => {
       for (const [id, worker] of watcher.workers.entries()) {
-        const item = meshes.get(id)
+        let item = meshes.get(id)
         const geometry = worker.geometry
-        if (item?.geom === geometry) continue
-        if (item) view.scene.remove(item.mesh)
+        if (item && item.geometry !== geometry) {
+          view.scene.remove(item.mesh)
+          item.dispose()
+          item = undefined
+        }
         if (!geometry) continue
-        const mesh = generateMesh(geometry)
-        view.scene.add(mesh)
-        meshes.set(id, { mesh, geom: geometry })
+        const option = watcher.renderingOptions.get(id) ?? {}
+        if (!item) {
+          item = new SurfaceObject(geometry, option)
+          view.scene.add(item.mesh)
+          meshes.set(id, item)
+        } else {
+          item.update(option)
+        }
       }
       for (const [id, item] of meshes.entries()) {
         if (watcher.workers.has(id)) continue
@@ -95,8 +109,6 @@ class PolygonizeWorker {
   }
 }
 
-type RenderingOption = { color?: string }
-
 type FormulaInputType = {
   text: string
   renderingOption?: RenderingOption
@@ -110,6 +122,7 @@ export type FormulaType = {
 }
 type WorkerWatcher = {
   workers: Map<string, PolygonizeWorker>
+  renderingOptions: Map<string, RenderingOption>
   onUpdate?: () => void
 }
 
@@ -127,12 +140,12 @@ export function useFormulas(
   inputs: FormulaInputType[], radius: number
 ): [FormulaType[], SetFormulasType, WorkerWatcher] {
   const [formulas, setFormulas] = useState<FormulaType[]>(() => initialFormulas(inputs))
-  const workersRef = useRef<WorkerWatcher>({ workers: new Map() })
+  const watcherRef = useRef<WorkerWatcher>({ workers: new Map(), renderingOptions: new Map() })
   useEffect(() => {
-    const workers = workersRef.current.workers
+    const workers = watcherRef.current.workers
     const update = () => {
       setFormulas(formulas => formulas.map(f => ({ ...f, progress: workers.get(f.id)?.state })))
-      workersRef.current.onUpdate?.()
+      watcherRef.current.onUpdate?.()
     }
     let changed = false
     for (const { id, text } of formulas) {
@@ -155,5 +168,9 @@ export function useFormulas(
     }
     if (changed) update()
   }, [formulas, radius])
-  return [formulas, setFormulas, workersRef.current]
+  useEffect(() => {
+    watcherRef.current.renderingOptions = new Map(formulas.map(f => [f.id, f.renderingOption]))
+    watcherRef.current.onUpdate?.()
+  }, [formulas])
+  return [formulas, setFormulas, watcherRef.current]
 }

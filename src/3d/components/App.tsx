@@ -1,4 +1,4 @@
-import React, { useState, useRef, useReducer, useEffect, useCallback } from 'react'
+import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { useFormulas, View } from './View'
 import { MathList } from './Form'
 
