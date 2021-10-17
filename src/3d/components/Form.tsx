@@ -1,5 +1,12 @@
-import React, { useState, useRef, useReducer, useEffect, useCallback } from 'react'
-import { List, ListItem, ListItemAvatar, Avatar, TextField, ListItemText } from '@mui/material'
+import React, { useState, useRef, useCallback } from 'react'
+import {
+  List, ListItem, ListItemText, ListItemAvatar, Avatar,
+  Slider, Input, TextField,
+  Dialog, DialogTitle, DialogContent,
+  IconButton, Grid
+} from '@mui/material'
+import CloseIcon from '@mui/icons-material/Close'
+import { styled } from '@mui/material/styles'
 import { DndContext, DragEndEvent, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
 import { arrayMove, SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable'
 import type { FormulaType, FormulaProgress, SetFormulasType } from './View'
@@ -16,13 +23,14 @@ const MathListItem: React.VFC<MathListItemProps> = ({ formula, update }) => {
   const dndStyle = {
     transform: sortable.transform ? `translate3D(0, ${sortable.transform.y}px, 0)` : ''
   }
+  const [dialogOpen, setDialogOpen] = useState(false)
   return (
     <div ref={sortable.setNodeRef} style={dndStyle}>
       <ListItem >
         <ListItemAvatar style={{ touchAction: 'none', cursor: 'move' }} {...sortable.listeners} {...sortable.attributes}>
-          <ClickableInsideDND onClick={() => alert(1)}>
-            <Avatar>
-              い
+          <ClickableInsideDND onClick={() => setDialogOpen(true)}>
+            <Avatar style={{ color: formula.renderingOption.color ?? 'white' }}>
+              あ
             </Avatar>
           </ClickableInsideDND>
         </ListItemAvatar>
@@ -38,6 +46,12 @@ const MathListItem: React.VFC<MathListItemProps> = ({ formula, update }) => {
           {text && formula.text === text && <FormulaStatus progress={formula.progress} />}
         </ListItemText>
       </ListItem>
+      <ColorDialog
+        open={dialogOpen}
+        onClose={() => setDialogOpen(false)}
+        color={formula.renderingOption.color ?? '#ffffff'}
+        onChange={color => update({ ...formula, renderingOption: { ...formula.renderingOption, color } })}
+      />
     </div>
   )
 }
@@ -88,7 +102,7 @@ export const MathList: React.VFC<MathListProps> = ({ formulas, setFormulas }) =>
       })
     }
   }, [])
-
+  const [color,setColor]=useState('#aabbcc')
   return (
     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
       <SortableContext items={formulas} strategy={verticalListSortingStrategy}>
@@ -121,4 +135,80 @@ const ClickableInsideDND: React.FC<{ onClick?: () => void }> = ({ onClick, child
 
   }, [onClick])
   return <div onPointerDown={onPointerDown} onPointerUp={onPointerUp} style={{ cursor: 'pointer' }}>{children}</div>
+}
+
+const ColorDialog: React.VFC<{ open: boolean; onClose: () => void; color: string; onChange: (color: string) => void }> = ({
+  open, onClose, color, onChange
+}) => {
+  return (
+    <Dialog open={open} onClose={onClose}>
+      <DialogTitle>
+        Surface Color
+        <IconButton aria-label="close" onClick={onClose}><CloseIcon /></IconButton>
+      </DialogTitle>
+      <DialogContent>
+        <ColorPicker color={color} onChange={onChange} />
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+const ColorPicker: React.VFC<{ color: string; onChange: (color: string) => void }> = ({ color, onChange }) => {
+  const [r, g, b] = [0, 1, 2].map(i => parseInt(color.substr(2 * i + 1, 2), 16))
+  const update = (r: number, g: number, b: number) => {
+    onChange('#' + [r, g, b].map(c => {
+      const c2 = c < 0 ? 0 : c > 255 ? 255 : Math.round(c)
+      return Math.floor(c2 / 16).toString(16) + (c2 % 16).toString(16)
+    }).join(''))
+  }
+  return (<>
+    <ColorSlider SliderComponent={RedSlider} value={r} onChange={r => update(r, g, b)} />
+    <ColorSlider SliderComponent={GreenSlider} value={g} onChange={g => update(r, g, b)} />
+    <ColorSlider SliderComponent={BlueSlider} value={b} onChange={b => update(r, g, b)} />
+  </>)
+}
+
+function createColoredSlider(color: string) {
+  return styled(Slider)({
+    color,
+    height: 8,
+    '& .MuiSlider-valueLabel': {
+      backgroundColor: color,
+    },
+  })
+}
+const RedSlider = createColoredSlider('#f44')
+const GreenSlider = createColoredSlider('#4f4')
+const BlueSlider = createColoredSlider('#44f')
+type SliderComponentType = ReturnType<typeof createColoredSlider>
+const ColorSlider: React.VFC<{ SliderComponent: SliderComponentType; value: number; onChange: (value: number) => void }> = ({ SliderComponent, value, onChange }) => {
+  const handleChange = (value: number) => {
+    if (0 <= value && value <= 255) onChange(value)
+  }
+  return (
+    <Grid container spacing={2} alignItems="center">
+      <Grid item xs>
+        <SliderComponent
+          value={value}
+          min={0} max={255}
+          onChange={(_e, v) => handleChange(v as number)}
+          aria-labelledby="input-slider"
+        />
+      </Grid>
+      <Grid item>
+        <Input
+          value={value}
+          size="small"
+          onChange={e => handleChange(parseInt(e.target.value))}
+          inputProps={{
+            step: 15,
+            min: 0,
+            max: 255,
+            type: 'number',
+            'aria-labelledby': 'input-slider',
+          }}
+        />
+      </Grid>
+    </Grid>
+  )
 }

@@ -21,6 +21,7 @@
     "@dnd-kit/core": "*",
     "@dnd-kit/sortable": "*",
     "@mui/material": "*",
+    "@mui/icons-material": "*",
     "@emotion/react": "*",
     "@emotion/styled": "*"
   }
