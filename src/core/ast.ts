@@ -18,8 +18,18 @@ export function extractVariables(ast: ASTNode, constants: Record<string, number>
     if (typeof ast === 'string') {
       if (!constants[ast]) set.add(ast)
     } else {
-      ast.args.forEach(arg => extract(arg))
+      for (const arg of ast.args) extract(arg)
     }
+  }
+  extract(ast)
+  return [...set]
+}
+export function extractFunctions(ast: ASTNode, functions: Set<string>) {
+  const set = new Set<string>()
+  function extract(ast: ASTNode) {
+    if (typeof ast === 'number' || typeof ast === 'string') return
+    if (functions.has(ast.op)) set.add(ast.op)
+    for (const arg of ast.args) extract(arg)
   }
   extract(ast)
   return [...set]
