@@ -1,5 +1,4 @@
 import type { ASTNode } from './ast'
-// TODO: pow, abs min, max, etc
 const functionNames = new Set([
   'log', 'exp', 'sqrt', 'pow', 'hypot', 'sin', 'cos', 'tan', 'asin', 'acos', 'atan', 'sinh', 'cosh', 'tanh', 'asinh', 'acosh', 'atanh', 'atan2', '√', 'abs', 'arctan', 'min', 'max',
   'floor', 'ceil', 'round', 'sgn', 'sign', 'signum'
@@ -15,7 +14,6 @@ const alias: Record<string, string | undefined> = {
   'sgn': 'sign', 'signum': 'sign'
 }
 const tokenSet = new Set([...functionNames, ...constantNames, ...varNames, ...operators, ...comparers, ',', ' '])
-const maxTokenSize = Math.max(...[...tokenSet].map(v => v.length))
 
 type ParenGroup = (string | ParenGroup)[]
 function parseParen(input: string): ParenGroup {
@@ -42,7 +40,9 @@ function convertAlias(s: string) {
   return alias[s] || s
 }
 
-function matchToken(s: string, i: number): [number | string, number] | null{
+type Tokens = { set: Set<string>; max: number }
+
+function matchToken(s: string, i: number, tokens: Tokens): [number | string, number] | null{
   if (s[i].match(/\d/)) {
     let len = 1
     let dotCount = 0
@@ -52,14 +52,14 @@ function matchToken(s: string, i: number): [number | string, number] | null{
     }
     return [parseFloat(s.substr(i, len)), len]
   }
-  for (let len = maxTokenSize; len >= 1; len-=1) {
-    if (tokenSet.has(s.substr(i, len))) return [convertAlias(s.substr(i, len)), len]
+  for (let len = tokens.max; len >= 1; len-=1) {
+    if (tokens.set.has(s.substr(i, len))) return [convertAlias(s.substr(i, len)), len]
   }
   return null
 }
 
 type TokenParenGroup = (string | number | TokenParenGroup)[]
-function tokenize(group: ParenGroup): TokenParenGroup {
+function tokenize(group: ParenGroup, tokens: Tokens): TokenParenGroup {
   const out: TokenParenGroup = []
   const pattern = group.map(s => typeof s === 'string' ? s : '@').join('')
   for (let i = 0; i < group.length;) {
@@ -68,22 +68,27 @@ function tokenize(group: ParenGroup): TokenParenGroup {
       if (out[out.length - 1] !== item) out.push(item)
       i += 1
     } else if (typeof item === 'string') {
-      const result = matchToken(pattern, i)
+      const result = matchToken(pattern, i, tokens)
       if (!result) throw `Unexpected Token "${pattern[i]}"`
       const [v, len] = result
       out.push(v)
       i += len
     } else {
-      out.push(tokenize(item))
+      out.push(tokenize(item, tokens))
       i ++
     }
   }
   return out
 }
 
-export function parse(s: string) {
+export function parse(s: string, extraTokens?: Set<string>) {
   const pg = parseParen(s)
-  const tg = tokenize(pg)
+  const tokens = { set: new Set(tokenSet), max: 0 }
+  if (extraTokens) extraTokens.forEach(t => tokens.set.add(t))
+  for (const t of tokens.set) {
+    if (tokens.max < t.length) tokens.max = t.length
+  }
+  const tg = tokenize(pg, tokens)
   return buildRootAST(tg)
 }
 
