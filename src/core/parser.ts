@@ -1,5 +1,5 @@
 import type { ASTNode } from './ast'
-const functionNames = new Set([
+export const predefinedFunctionNames = new Set([
   'log', 'exp', 'sqrt', 'pow', 'hypot', 'sin', 'cos', 'tan', 'asin', 'acos', 'atan', 'sinh', 'cosh', 'tanh', 'asinh', 'acosh', 'atanh', 'atan2', '√', 'abs', 'arctan', 'min', 'max',
   'floor', 'ceil', 'round', 'sgn', 'sign', 'signum'
 ])
@@ -13,7 +13,7 @@ const alias: Record<string, string | undefined> = {
   'th': 'theta', 'θ': 'theta', 'φ': 'phi',
   'sgn': 'sign', 'signum': 'sign'
 }
-const tokenSet = new Set([...functionNames, ...constantNames, ...varNames, ...operators, ...comparers, ',', ' '])
+const tokenSet = new Set([...predefinedFunctionNames, ...constantNames, ...varNames, ...operators, ...comparers, ',', ' '])
 
 type ParenGroup = (string | ParenGroup)[]
 function parseParen(input: string): ParenGroup {
@@ -81,27 +81,32 @@ function tokenize(group: ParenGroup, tokens: Tokens): TokenParenGroup {
   return out
 }
 
-export function parse(s: string, extraTokens?: Set<string>) {
+export function parse(s: string, extraVariables?: Set<string>, extraFunctions?: Set<string>) {
   const pg = parseParen(s)
   const tokens = { set: new Set(tokenSet), max: 0 }
-  if (extraTokens) extraTokens.forEach(t => tokens.set.add(t))
+  const functions = new Set(predefinedFunctionNames)
+  if (extraVariables) extraVariables.forEach(t => tokens.set.add(t))
+  if (extraFunctions) extraFunctions.forEach(t => {
+    tokens.set.add(t)
+    functions.add(t)
+  })
   for (const t of tokens.set) {
     if (tokens.max < t.length) tokens.max = t.length
   }
   const tg = tokenize(pg, tokens)
-  return buildRootAST(tg)
+  return buildRootAST(tg, functions)
 }
 
-function buildRootAST(group: TokenParenGroup): [ASTNode, '=' | '>' | '>=' | null] {
+function buildRootAST(group: TokenParenGroup, functionNames: Set<string>): [ASTNode, '=' | '>' | '>=' | null] {
   const idx = group.findIndex(item => typeof item === 'string' && comparers.has(item))
   if (idx === -1) {
-    const ast = buildAST(group)
+    const ast = buildAST(group, functionNames)
     if (Array.isArray(ast)) throw 'Unexpected comma'
     return [ast, null]
   }
   const cmp = group[idx] as string
-  const left = buildAST(group.slice(0, idx))
-  const right = buildAST(group.slice(idx + 1))
+  const left = buildAST(group.slice(0, idx), functionNames)
+  const right = buildAST(group.slice(idx + 1), functionNames)
   if (Array.isArray(left) || Array.isArray(right)) throw 'Unexpected comma'
   const ast: ASTNode = cmp.includes('>') ? { op: '-', args: [left, right] } : { op: '-', args: [right, left] }
   if (cmp === '=') return [ast, '=']
@@ -109,12 +114,12 @@ function buildRootAST(group: TokenParenGroup): [ASTNode, '=' | '>' | '>=' | null
 }
 type ArgGroup = ASTNode[]
 const oplist = [new Set(['+', '-']), new Set(['*', '/', ' '])]
-function buildFuncMultPow(group: TokenParenGroup): ASTNode {
+function buildFuncMultPow(group: TokenParenGroup, functionNames: Set<string>): ASTNode {
   type Args = { type: 'args'; value: ArgGroup }
   type Paren = { type: 'paren', value: ASTNode }
   const values: (string | number | Args | Paren)[] = group.map(g => {
     if (typeof g !== 'object') return g
-    const astOrArg = buildAST(g)
+    const astOrArg = buildAST(g, functionNames)
     return Array.isArray(astOrArg) ? { type: 'args' as const, value: astOrArg } : { type: 'paren' as const, value: astOrArg }
   })
   const mults: ASTNode[] = []
@@ -173,8 +178,8 @@ function buildFuncMultPow(group: TokenParenGroup): ASTNode {
   if (mults.length === 0) throw `Unexpected Empty Block`
   return mults.reduce((a, b) => ({ op: '*', args: [a, b] }))
 }
-function splitByOp(group: TokenParenGroup, index: number): ASTNode {
-  if (index === oplist.length) return buildFuncMultPow(group)
+function splitByOp(group: TokenParenGroup, index: number, functionNames: Set<string>): ASTNode {
+  if (index === oplist.length) return buildFuncMultPow(group, functionNames)
   const ops = oplist[index]
   let current: TokenParenGroup = []
   const groups: TokenParenGroup[] = [current]
@@ -188,11 +193,11 @@ function splitByOp(group: TokenParenGroup, index: number): ASTNode {
     }
   }
   const first = groups[0]
-  let ast = first.length === 0 ? null : splitByOp(first, index + 1)
+  let ast = first.length === 0 ? null : splitByOp(first, index + 1, functionNames)
   operators.forEach((op, i) => {
     const left = ast
     const rgroup = groups[i + 1]
-    const right = rgroup.length === 0 ? null : splitByOp(rgroup, index + 1)
+    const right = rgroup.length === 0 ? null : splitByOp(rgroup, index + 1, functionNames)
     if (right == null) {
       if (op === ' ') return
       throw `No Right Hand Side: ${op}`
@@ -208,14 +213,14 @@ function splitByOp(group: TokenParenGroup, index: number): ASTNode {
   if (ast == null) throw 'Unexpected Empty Group'
   return ast
 }
-function buildAST(group: TokenParenGroup): ASTNode | ArgGroup {
+function buildAST(group: TokenParenGroup, functionNames: Set<string>): ASTNode | ArgGroup {
   let current: TokenParenGroup = []
   const out = [current]
   for (let item of group) {
     if (item == ',') out.push(current = [])
     else current.push(item)
   }
-  const astNodes = out.map(g => splitByOp(g, 0))
+  const astNodes = out.map(g => splitByOp(g, 0, functionNames))
   if (astNodes.length === 1) return astNodes[0]
   return astNodes
 }
