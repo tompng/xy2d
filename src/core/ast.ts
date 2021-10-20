@@ -149,7 +149,7 @@ export function astTo3DFunction(ast: ASTNode, constants: Record<string, number> 
 }
 
 
-function astToRangeVarNameCode(
+export function astToRangeVarNameCode(
   ast: ASTNode,
   args: Record<string, MinMaxVarName>,
   expanders: Record<string, Expander>,

@@ -1,5 +1,6 @@
 import { parse, predefinedFunctionNames } from './parser'
-import { ASTNode, UniqASTNode, extractVariables, extractFunctions, astToCode } from './ast'
+import { ASTNode, UniqASTNode, extractVariables, extractFunctions, astToCode, astToRangeVarNameCode } from './ast'
+import { expanders, specialVariables, results, GAPMARK, NANMARK, Expander, MinMaxVarName, NameGenerator, RangeResult } from "./expander"
 
 type VarDef = { type: 'var'; name: string; deps: string[]; ast: UniqASTNode | null; error?: string }
 type FuncDef = { type: 'func'; name: string; deps: string[]; args: string[]; ast: UniqASTNode | null; error?: string }
@@ -66,9 +67,13 @@ function parseMultiple(formulaTexts: string[]) {
   return formulas.map(f => {
     if (!f.ast || f.type !== 'eq') return f
     try {
-      // console.log(JSON.stringify(expandAST(f.ast, vars, funcs, uniq)))
-      console.log(astToFunction(expandAST(f.ast, vars, funcs, uniq)))
-      return { ...f, ast: expandAST(f.ast, vars, funcs, uniq) }
+      const expandedAST = expandAST(f.ast, vars, funcs, uniq)
+      console.log('')
+      console.log(astToFunction(expandedAST))
+      console.log('')
+      console.log(astToRangeFunction(expandedAST))
+      console.log('')
+      return { ...f, ast: expandedAST }
     } catch(e) {
       return { ...f, ast: null, error: String(e) }
     }
@@ -161,29 +166,6 @@ class UniqASTGenerator {
   }
 }
 
-export function astToFunction(ast: UniqASTNode) {
-  const reuseds = extractReusedAST(ast)
-  const converts = new Map<UniqASTNode, string>(reuseds.map((ast, i) => [ast, `v${i}`]))
-  const args = new Set(['x', 'y', 'z', ...converts.values()])
-  const replaceds = new Map<UniqASTNode, ASTNode>()
-  function replace(ast: UniqASTNode, root?: boolean): ASTNode {
-    const ast2 = root ? null : replaceds.get(ast) ?? converts.get(ast)
-    if (ast2 != null) return ast2
-    if (typeof ast !== 'object') return ast
-    const replaced =  { op: ast.op, args: ast.args.map(arg => replace(arg)) }
-    if (!root) replaceds.set(ast, replaced)
-    return replaced
-  }
-  const codes: string[] = []
-  for (const vast of reuseds) {
-    const name = converts.get(vast)!
-    codes.push(`const ${name}=${astToCode(replace(vast, true), args)};`)
-  }
-  const code = astToCode(replace(ast, true), args)
-  codes.push(`return ${code}`)
-  return codes.join('\n')
-}
-
 function extractReusedAST(ast: UniqASTNode): UniqASTNode[] {
   const set = new Set<UniqASTNode>()
   const reused = new Set<UniqASTNode>()
@@ -199,6 +181,74 @@ function extractReusedAST(ast: UniqASTNode): UniqASTNode[] {
   extract(ast)
   return [...reused]
 }
+
+function toProcedure(ast: UniqASTNode) {
+  const reuseds = extractReusedAST(ast)
+  const converts = new Map<UniqASTNode, string>(reuseds.map((ast, i) => [ast, `v${i}`]))
+  const replaceds = new Map<UniqASTNode, ASTNode>()
+  function replace(ast: UniqASTNode, root?: boolean): ASTNode {
+    const ast2 = root ? null : replaceds.get(ast) ?? converts.get(ast)
+    if (ast2 != null) return ast2
+    if (typeof ast !== 'object') return ast
+    const replaced =  { op: ast.op, args: ast.args.map(arg => replace(arg)) }
+    if (!root) replaceds.set(ast, replaced)
+    return replaced
+  }
+  const vars = new Map<string, ASTNode>()
+  for (const vast of reuseds) {
+    const name = converts.get(vast)!
+    vars.set(name, replace(vast, true))
+  }
+  return [vars, replace(ast, true)] as const
+}
+
+export function astToFunction(ast: UniqASTNode) {
+  const [vars, rast] = toProcedure(ast)
+  const args = new Set(['x', 'y', 'z', ...vars.keys()])
+  const codes = [...vars.entries()].map(([name, ast]) => `const ${name}=${astToCode(ast, args)}`)
+  return codes.join('\n') + `\nreturn ${astToCode(rast, args)}`
+}
+
+function createNameGenerator() {
+  let nameGeneratorIndex = 9
+  return () => {
+    let n = nameGeneratorIndex++
+    const suffix = n % 10
+    n = (n - suffix) / 10
+    let name = ''
+    while (name === '' || n > 0) {
+      name = String.fromCharCode('a'.charCodeAt(0) + n % 26) + name
+      n = Math.floor(n / 26)
+    }
+    return name + suffix
+  }
+}
+
+export function astToRangeFunction(uniqAST: UniqASTNode) {
+  const [tempVars, returnAST] = toProcedure(uniqAST)
+  const namer = createNameGenerator()
+  const args: Record<string, MinMaxVarName> = { x: ['xmin', 'xmax'], y: ['ymin', 'ymax'], z: ['zmin', 'zmax'] }
+  const codes = [...tempVars.entries()].map(([name, ast]) => {
+    const [result, code] = astToRangeVarNameCode(ast, args, expanders, namer)
+    if (typeof result === 'number') {
+      const varname = namer()
+      args[name] = [varname, varname] // Must not happen?
+      return `const ${varname}=${result}`
+    } else {
+      args[name] = result
+      return code
+    }
+  })
+  const [result, code] = astToRangeVarNameCode(
+    returnAST,
+    args,
+    expanders,
+    namer
+  )
+  if (typeof result === 'number') return `return ${result}`
+  return [...codes, code, `return [${result[0]}, ${result[1]}]`].join('\n')
+}
+
 
 const formulas = [
   'e=2.71828',
