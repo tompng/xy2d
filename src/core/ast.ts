@@ -4,11 +4,10 @@ export type RangeFunction = (xmin: number, xmax: number, ymin: number, ymax: num
 export type RangeFunction3D = (xmin: number, xmax: number, ymin: number, ymax: number, zmin: number, zmax: number) => RangeResult
 export type ValueFunction = (x: number, y: number) => number
 export type ValueFunction3D = (x: number, y: number, z: number) => number
-export type ASTOpNode = {
-  op: string
-  args: ASTNode[]
-}
+export type ASTOpNode = { op: string; args: ASTNode[] }
 export type ASTNode = string | number | ASTOpNode
+export type UniqASTOpNode = { op: string; args: UniqASTNode[]; uniqId: number, uniqKey: string }
+export type UniqASTNode = string | number | UniqASTOpNode
 
 const mathConstants = { e: Math.E, pi: Math.PI }
 

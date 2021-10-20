@@ -1,5 +1,5 @@
 import { parse, predefinedFunctionNames } from './parser'
-import { ASTNode, extractVariables, extractFunctions, astTo3DFunction } from './ast'
+import { ASTNode, UniqASTNode, extractVariables, extractFunctions, astToCode } from './ast'
 
 type VarDef = { type: 'var'; name: string; deps: string[]; ast: UniqASTNode | null; error?: string }
 type FuncDef = { type: 'func'; name: string; deps: string[]; args: string[]; ast: UniqASTNode | null; error?: string }
@@ -67,7 +67,7 @@ function parseMultiple(formulaTexts: string[]) {
     if (!f.ast || f.type !== 'eq') return f
     try {
       // console.log(JSON.stringify(expandAST(f.ast, vars, funcs, uniq)))
-      console.log(astTo3DFunction(expandAST(f.ast, vars, funcs, uniq)).toString())
+      console.log(astToFunction(expandAST(f.ast, vars, funcs, uniq)))
       return { ...f, ast: expandAST(f.ast, vars, funcs, uniq) }
     } catch(e) {
       return { ...f, ast: null, error: String(e) }
@@ -97,7 +97,7 @@ function recursiveCheck(formulas: Formula[], defs: Map<string, Definition>) {
   for (const f of formulas) check(f)
 }
 
-function expandAST(ast: UniqASTNode, vars: Map<string, VarDef>, funcs: Map<string, FuncDef>, gen: UniqASTGenerator): UniqASTNode {
+function expandAST(ast: UniqASTNode, vars: Map<string, VarDef>, funcs: Map<string, FuncDef>, uniq: UniqASTGenerator): UniqASTNode {
   const expandeds = new Map<UniqASTNode, UniqASTNode>()
   function expand(ast: UniqASTNode): UniqASTNode {
     const output = expandeds.get(ast)
@@ -106,17 +106,17 @@ function expandAST(ast: UniqASTNode, vars: Map<string, VarDef>, funcs: Map<strin
     if (typeof ast === 'string') {
       const vdef = vars.get(ast)
       if (!vdef?.ast) return ast
-      return expandAST(vdef.ast, vars, funcs, gen)
+      return expandAST(vdef.ast, vars, funcs, uniq)
     }
-    const args = ast.args.map(arg => expandAST(arg, vars, funcs, gen))
+    const args = ast.args.map(arg => expandAST(arg, vars, funcs, uniq))
     const fdef = funcs.get(ast.op)
     let expanded: UniqASTNode
     if (!fdef?.ast) {
-      expanded = gen.create(ast.op, args)
+      expanded = uniq.create(ast.op, args)
     } else {
       if (args.length !== fdef.args.length) throw `Wrong number of arguments for ${fdef.name}(${fdef.args.join(',')})`
       const argVars = new Map(fdef.args.map((name, i) => [name, args[i]] as const))
-      const argReplaced = replaceVariables(fdef.ast, argVars, gen)
+      const argReplaced = replaceUniqAST(fdef.ast, argVars, uniq)
       expanded = expand(argReplaced)
     }
     return expanded
@@ -124,22 +124,21 @@ function expandAST(ast: UniqASTNode, vars: Map<string, VarDef>, funcs: Map<strin
   return expand(ast)
 }
 
-function replaceVariables(ast: UniqASTNode, vars: Map<string, UniqASTNode>, gen: UniqASTGenerator): UniqASTNode {
+function replaceUniqAST(ast: UniqASTNode, converts: Map<UniqASTNode, UniqASTNode>, uniq: UniqASTGenerator): UniqASTNode {
   const replaceds = new Map<UniqASTNode, UniqASTNode>()
   function replace(ast: UniqASTNode): UniqASTNode {
     const output = replaceds.get(ast)
     if (output) return output
-    if (typeof ast === 'number') return ast
-    if (typeof ast === 'string') return vars.get(ast) ?? ast
-    const replaced = gen.create(ast.op, ast.args.map(arg => replaceVariables(arg, vars, gen)))
+    const ast2 = converts.get(ast)
+    if (ast2 != null) return ast2
+    if (typeof ast !== 'object') return ast
+    const replaced = uniq.create(ast.op, ast.args.map(arg => replaceUniqAST(arg, converts, uniq)))
     replaceds.set(ast, replaced)
     return replaced
   }
   return replace(ast)
 }
 
-type UniqASTOpNode = { op: string; args: UniqASTNode[]; uniqId: number, uniqKey: string }
-type UniqASTNode = string | number | UniqASTOpNode
 class UniqASTGenerator {
   key2ast = new Map<string, UniqASTNode>()
   idCnt = 0
@@ -162,17 +161,60 @@ class UniqASTGenerator {
   }
 }
 
+export function astToFunction(ast: UniqASTNode) {
+  const reuseds = extractReusedAST(ast)
+  const converts = new Map<UniqASTNode, string>(reuseds.map((ast, i) => [ast, `v${i}`]))
+  const args = new Set(['x', 'y', 'z', ...converts.values()])
+  const replaceds = new Map<UniqASTNode, ASTNode>()
+  function replace(ast: UniqASTNode, root?: boolean): ASTNode {
+    const ast2 = root ? null : replaceds.get(ast) ?? converts.get(ast)
+    if (ast2 != null) return ast2
+    if (typeof ast !== 'object') return ast
+    const replaced =  { op: ast.op, args: ast.args.map(arg => replace(arg)) }
+    if (!root) replaceds.set(ast, replaced)
+    return replaced
+  }
+  const codes: string[] = []
+  for (const vast of reuseds) {
+    const name = converts.get(vast)!
+    codes.push(`const ${name}=${astToCode(replace(vast, true), args)};`)
+  }
+  const code = astToCode(replace(ast, true), args)
+  codes.push(`return ${code}`)
+  return codes.join('\n')
+}
 
+function extractReusedAST(ast: UniqASTNode): UniqASTNode[] {
+  const set = new Set<UniqASTNode>()
+  const reused = new Set<UniqASTNode>()
+  function extract(ast: UniqASTNode) {
+    if (typeof ast !== 'object') return
+    if (set.has(ast)) {
+      reused.add(ast)
+      return
+    }
+    set.add(ast)
+    for (const arg of ast.args) extract(arg)
+  }
+  extract(ast)
+  return [...reused]
+}
 
 const formulas = [
+  'e=2.71828',
   'a=12+x+b',
-  'sin(x+y+a)=(b*x+y)',
+  'sin(x+y+a*e)=(b*x+y+e^x)',
   'b=x+y+z',
   'a+xy',
-  'f(x,y,w)=x+y+a+w',
+  'f(x,y,w)=x+y+a+w+z',
   'f(x,y,z)=1',
   'b=xy',
-  'f(x,y,3)=f(y,x,2)'
+  'f(x,y,3)=f(f(f(y,x,2),f(y,x,2),3),f(f(y,x,2),f(y,x,2),3),xyz)',
+  'R(a,b)=a*a-b*b+x',
+  'I(a,b)=2*a*b+y',
+  'S(a,b)=R(R(R(a,b),I(a,b)),I(R(a,b),I(a,b)))',
+  'J(a,b)=I(R(R(a,b),I(a,b)),I(R(a,b),I(a,b)))',
+  'S(S(x,y),J(x,y))**2+J(S(x,y),J(x,y))**2<4',
 ]
 
 console.log(parseMultiple(formulas))
