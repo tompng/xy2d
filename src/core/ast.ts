@@ -10,14 +10,12 @@ export type ASTNode = string | number | ASTOpNode
 export type UniqASTOpNode = { op: string; args: UniqASTNode[]; uniqId: number, uniqKey: string }
 export type UniqASTNode = string | number | UniqASTOpNode
 
-const mathConstants = { e: Math.E, pi: Math.PI }
-
-export function extractVariables(ast: ASTNode, constants: Record<string, number> = mathConstants) {
+export function extractVariables(ast: ASTNode) {
   const set = new Set<string>()
   function extract(ast: ASTNode) {
     if (typeof ast === 'number') return
     if (typeof ast === 'string') {
-      if (!constants[ast]) set.add(ast)
+      set.add(ast)
     } else {
       for (const arg of ast.args) extract(arg)
     }
@@ -88,20 +86,6 @@ function evalOperatorArgs(op: string, args: number[]) {
   }
 }
 
-export function compactAST(ast: ASTNode, constants: Record<string, number>): ASTNode {
-  if (typeof ast === 'number') return ast
-  if (typeof ast === 'string') {
-    const value = constants[ast]
-    return typeof value === 'number' ? value : ast
-  }
-  const args = ast.args.map(arg => compactAST(arg, constants))
-  if (isNumberArray(args)) {
-    const result = evalOperatorArgs(ast.op, args)
-    if (result != null) return result
-  }
-  return { op: ast.op, args }
-}
-
 export function preEvaluateAST(ast: UniqASTNode, uniq: UniqASTGenerator, astResult = new Map<UniqASTNode, UniqASTNode>()) {
   function traverse(ast: UniqASTNode): UniqASTNode {
     if (typeof ast !== 'object') return ast
@@ -149,30 +133,6 @@ export function astToCode(ast: ASTNode, argNames: Set<string>): string {
   }
 }
 
-export function astToFunction(ast: ASTNode, constants: Record<string, number> = mathConstants): ValueFunction {
-  const args = new Set(['x', 'y', 'r', 'theta'])
-  const variables = extractVariables(ast)
-  const codes: string[] = []
-  if (variables.includes('theta')) codes.unshift('const theta=Math.atan2(y,x);')
-  if (variables.includes('r')) codes.unshift('const r=Math.hypot(x,y);')
-  const retval = astToCode(compactAST(ast, constants), args)
-  const code = codes.length === 0 ? retval : `{${codes.join('')}return ${retval}}`
-  return eval(`(x, y) => ${code}`)
-}
-
-export function astTo3DFunction(ast: ASTNode, constants: Record<string, number> = mathConstants): ValueFunction3D {
-  const args = new Set(['x', 'y', 'z', 'r', 'theta', 'phi'])
-  const variables = extractVariables(ast)
-  const codes: string[] = []
-  if (variables.includes('phi')) codes.unshift('const phi=Math.atan2(Math.hypot(x,y),z);')
-  if (variables.includes('theta')) codes.unshift('const theta=Math.atan2(y,x);')
-  if (variables.includes('r')) codes.unshift('const r=Math.hypot(x,y,z);')
-  const retval = astToCode(compactAST(ast, constants), args)
-  const code = codes.length === 0 ? retval : `{${codes.join('')}return ${retval}}`
-  return eval(`(x, y, z) => ${code}`)
-}
-
-
 export function astToRangeVarNameCode(
   ast: ASTNode,
   args: Record<string, MinMaxVarName>,
@@ -210,51 +170,4 @@ function astToRangeVarNameCodeRec(ast: ASTNode, argMap: Record<string, MinMaxVar
   if (!expander) throw new Error(`Expander undefined for: ${ast.op}`)
   const [c, ccode] = expander(args, namer)
   return [c, codes.join(';') + ';' + ccode]
-}
-
-export function astToRangeFunction(ast: ASTNode, option: { pos?: boolean; neg?: boolean }, constants: Record<string, number> = mathConstants) {
-  return astToRangeFunctionBase(ast, { ...option, dim: 2 }, constants)
-}
-
-export function astTo3DRangeFunction(ast: ASTNode, option: { pos?: boolean; neg?: boolean }, constants: Record<string, number> = mathConstants) {
-  return astToRangeFunctionBase(ast, { ...option, dim: 3 }, constants)
-}
-
-export function astToRangeFunctionBase<DIM extends 2 | 3>(ast: ASTNode, option: { pos?: boolean; neg?: boolean, dim: DIM }, constants: Record<string, number> = mathConstants): DIM extends 2 ? RangeFunction : RangeFunction3D {
-  const nameGenerator = createNameGenerator()
-  const args: Record<string, [string, string]> = option.dim == 2
-    ? { x: ['xmin', 'xmax'], y: ['ymin', 'ymax'] }
-    : { x: ['xmin', 'xmax'], y: ['ymin', 'ymax'], z: ['zmin', 'zmax'] }
-  const [result, code] = astToRangeVarNameCode(
-    compactAST(ast, constants),
-    args,
-    expanders,
-    nameGenerator
-  )
-  const epsilon = 1e-15
-  const argsPart = option.dim == 2 ? '(xmin,xmax,ymin,ymax)' : '(xmin,xmax,ymin,ymax,zmin,zmax)'
-  if (typeof result === 'number') {
-    const val = isNaN(result) ? results.NAN : result < -epsilon ? results.NEG : result > epsilon ? results.POS : results.ZERO
-    return eval(`${argsPart}=>${val}`)
-  }
-  const gapTest = code.includes(GAPMARK)
-  const nanTest = code.includes(NANMARK)
-  const gapPrepare = gapTest ? 'let _gap=false;' : ''
-  const nanPrepare = nanTest ? 'let _nan=false;' : ''
-  const preparePart = gapPrepare + nanPrepare
-  const [minvar, maxvar] = result
-  const markEmbeddedCode = code.replaceAll(GAPMARK, '_gap=true;').replaceAll(NANMARK, '_nan=true;')
-  const gapRetPart = gapTest ? `_gap?${results.HASGAP}:` : ''
-  const nanRetPart = nanTest ? `_nan?${results.HASNAN}:` : ''
-  let returnPart: string
-  if (option.pos && option.neg) {
-    returnPart = `return ${nanRetPart}${minvar}>${epsilon}?${results.POS}:${maxvar}<${-epsilon}?${results.NEG}:${gapRetPart}${results.BOTH}`
-  } else if (option.pos) {
-    returnPart = `return ${minvar}>${epsilon}?${nanRetPart}${results.POS}:${maxvar}<${-epsilon}?${results.NEG}:${gapRetPart}${results.BOTH}`
-  } else if (option.neg) {
-    returnPart = `return ${minvar}>${epsilon}?${results.POS}:${maxvar}<${-epsilon}?${nanRetPart}${results.NEG}:${gapRetPart}${results.BOTH}`
-  } else {
-    returnPart = `return ${minvar}>${epsilon}?${results.POS}:${maxvar}<${-epsilon}?${results.NEG}:${gapRetPart}${results.BOTH}`
-  }
-  return eval(`${argsPart}=>{${preparePart}${markEmbeddedCode};${returnPart}}`)
 }
