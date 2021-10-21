@@ -103,6 +103,7 @@ function recursiveCheck(formulas: Formula[], defs: Map<string, Definition>) {
     if (formula.type !== 'eq') {
       if (rec.has(formula.name)) {
         formula.error = `cannot define recursively: ${formula.name}`
+        formula.ast = null
         return
       }
       rec.add(formula.name)
@@ -114,6 +115,7 @@ function recursiveCheck(formulas: Formula[], defs: Map<string, Definition>) {
     const errorDep = formula.deps.find(n => defs.get(n)?.error)
     if (errorDep) {
       formula.error = formula.error || `${errorDep} is not defined`
+      formula.ast = null
     }
     if (formula.type !== 'eq') rec.delete(formula.name)
   }
