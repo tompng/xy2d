@@ -1,4 +1,5 @@
-import { expanders, specialVariables, results, GAPMARK, NANMARK, Expander, MinMaxVarName, NameGenerator, RangeResult } from "./expander"
+import { NameGenerator, createNameGenerator, UniqASTGenerator, MinMaxVarName, RangeResult } from './util'
+import { expanders, specialVariables, results, GAPMARK, NANMARK, Expander } from "./expander"
 
 export type RangeFunction = (xmin: number, xmax: number, ymin: number, ymax: number) => RangeResult
 export type RangeFunction3D = (xmin: number, xmax: number, ymin: number, ymax: number, zmin: number, zmax: number) => RangeResult
@@ -39,7 +40,7 @@ function isNumberArray(arr: any[]): arr is number[] {
   return arr.every(arg => typeof arg === 'number')
 }
 
-export function evalOperatorArgs(op: string, args: number[]) {
+function evalOperatorArgs(op: string, args: number[]) {
   if (args.length === 2) {
     const [a, b] = args
     switch (op) {
@@ -99,6 +100,24 @@ export function compactAST(ast: ASTNode, constants: Record<string, number>): AST
     if (result != null) return result
   }
   return { op: ast.op, args }
+}
+
+export function preEvaluateAST(ast: UniqASTNode, uniq: UniqASTGenerator) {
+  const astResult = new Map<UniqASTNode, UniqASTNode>()
+  function traverse(ast: UniqASTNode): UniqASTNode {
+    if (typeof ast !== 'object') return ast
+    let result = astResult.get(ast)
+    if (result != null) return result
+    const args = ast.args.map(traverse)
+    if (isNumberArray(args)) {
+      const v = evalOperatorArgs(ast.op, args)
+      if (v != null) result = v
+    }
+    if (result == null) result = uniq.create(ast.op, args)
+    astResult.set(ast, result)
+    return result
+  }
+  return traverse(ast)
 }
 
 export function astToCode(ast: ASTNode, argNames: Set<string>): string {
@@ -203,18 +222,7 @@ export function astTo3DRangeFunction(ast: ASTNode, option: { pos?: boolean; neg?
 }
 
 export function astToRangeFunctionBase<DIM extends 2 | 3>(ast: ASTNode, option: { pos?: boolean; neg?: boolean, dim: DIM }, constants: Record<string, number> = mathConstants): DIM extends 2 ? RangeFunction : RangeFunction3D {
-  let nameGeneratorIndex = 9
-  const nameGenerator = () => {
-    let n = nameGeneratorIndex++
-    const suffix = n % 10
-    n = (n - suffix) / 10
-    let name = ''
-    while (name === '' || n > 0) {
-      name = String.fromCharCode('a'.charCodeAt(0) + n % 26) + name
-      n = Math.floor(n / 26)
-    }
-    return name + suffix
-  }
+  const nameGenerator = createNameGenerator()
   const args: Record<string, [string, string]> = option.dim == 2
     ? { x: ['xmin', 'xmax'], y: ['ymin', 'ymax'] }
     : { x: ['xmin', 'xmax'], y: ['ymin', 'ymax'], z: ['zmin', 'zmax'] }

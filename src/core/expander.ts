@@ -1,8 +1,7 @@
-export type MinMaxVarName = [string, string]
-export type Expander = (args: (MinMaxVarName | number)[], namer: NameGenerator) => [MinMaxVarName | number, string]
-export type NameGenerator = () => string
+import type { MinMaxVarName, NameGenerator } from './util'
 
-export type RangeResult = -3 | -2 | -1 | 0 | 1 | 2 | 3
+export type Expander = (args: (MinMaxVarName | number)[], namer: NameGenerator) => [MinMaxVarName | number, string]
+
 const HASGAP = -3
 const HASNAN = -2
 const BOTH = -1
