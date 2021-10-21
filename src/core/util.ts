@@ -12,7 +12,7 @@ export type NameGenerator = () => string
 export type CompareMode = '=' | '>' | '>=' | null
 
 export function createNameGenerator(): NameGenerator {
-  let nameGeneratorIndex = 9
+  let nameGeneratorIndex = 0
   return () => {
     let n = nameGeneratorIndex++
     const suffix = n % 10
