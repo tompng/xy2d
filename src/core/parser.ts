@@ -1,13 +1,16 @@
 import type { ASTNode } from './ast'
 import type { CompareMode } from './util'
 export const predefinedFunctionNames = new Set([
-  'log', 'exp', 'sqrt', 'pow', 'hypot', 'sin', 'cos', 'tan', 'asin', 'acos', 'atan', 'sinh', 'cosh', 'tanh', 'asinh', 'acosh', 'atanh', 'atan2', '√', 'abs', 'arctan', 'min', 'max',
+  'log', 'exp', 'sqrt', 'pow', 'hypot', 'sin', 'cos', 'tan', 'asin', 'acos', 'atan', 'sinh', 'cosh', 'tanh', 'asinh', 'acosh', 'atanh', 'atan2', '√', 'abs', 'min', 'max',
+  'arcsin', 'arccos', 'arctan', 'arctanh', 'arccosh', 'arcsinh',
   'floor', 'ceil', 'round', 'sgn', 'sign', 'signum'
 ])
 const comparers = new Set(['<', '=', '>', '<=', '>='])
 const operators = new Set(['+', '-', '*', '/', '^', '**'])
 const alias: Record<string, string | undefined> = {
-  '**': '^', '√': 'sqrt', 'arctan': 'atan',
+  '**': '^', '√': 'sqrt',
+  'arcsin': 'asin', 'arccos': 'acos', 'arctan': 'atan',
+  'arctanh': 'atanh', 'arccosh': 'acosh', 'arcsinh': 'asinh',
   'π': 'pi', 'PI': 'pi', 'E': 'e',
   'th': 'theta', 'θ': 'theta', 'φ': 'phi',
   'sgn': 'sign', 'signum': 'sign'
