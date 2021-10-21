@@ -196,8 +196,13 @@ export function useFormulas(
       let valueCode: string | null = null
       let rangeCode: string | null = null
       if (parsed.type === 'eq' && parsed.ast && !parsed.error) {
-        valueCode =  astToValueFunctionCode(parsed.ast, args)
-        rangeCode =  astToRangeFunctionCode(parsed.ast, args, { pos: false, neg: false })
+        try {
+          valueCode =  astToValueFunctionCode(parsed.ast, args)
+          rangeCode =  astToRangeFunctionCode(parsed.ast, args, { pos: false, neg: false })
+        } catch(e) {
+          valueCode = rangeCode = null
+          parsed.error = String(e)
+        }
       }
       if (!w || w.valueCode !== valueCode || w.rangeCode !== rangeCode || w.radius !== radius) {
         changed = true
