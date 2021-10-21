@@ -1,19 +1,23 @@
 import { parse, predefinedFunctionNames } from './parser'
 import { ASTNode, UniqASTNode, UniqASTOpNode, extractVariables, extractFunctions, astToCode, astToRangeVarNameCode, preEvaluateAST } from './ast'
-import { expanders } from "./expander"
+import { expanders, results as Results, GAPMARK, NANMARK } from "./expander"
 import { createNameGenerator, MinMaxVarName, UniqASTGenerator } from './util'
 
+export type Presets = Record<string, string | number>
 type VarDef = { type: 'var'; name: string; deps: string[]; ast: UniqASTNode | null; error?: string }
 type FuncDef = { type: 'func'; name: string; deps: string[]; args: string[]; ast: UniqASTNode | null; error?: string }
 type Equation = { type: 'eq'; deps: string[]; ast: UniqASTNode | null; error?: string }
 type Definition = VarDef | FuncDef
 type Formula = Definition | Equation
-function parseMultiple(formulaTexts: string[]) {
+export function parseMultiple(formulaTexts: string[], argNames: string[], presets?: Presets) {
   const uniq = new UniqASTGenerator()
-  const predefinedVars = new Set(['x', 'y', 'z'])
+  const predefinedVars = new Set(argNames)
   const varNames = new Set(predefinedVars)
   const varDefRegexp = /^ *([a-zA-Z]) *(\( *[a-zA-Z](?: *, *[a-zA-Z])* *\))? *=(.*)/
   const funcNames = new Set(predefinedFunctionNames)
+  if (presets){
+    for (const name in presets) varNames.add(name)
+  }
   for (const f of formulaTexts) {
     const match = f.match(varDefRegexp)
     if (!match) continue
@@ -23,6 +27,19 @@ function parseMultiple(formulaTexts: string[]) {
   }
   const vars = new Map<string, VarDef>()
   const funcs = new Map<string, FuncDef>()
+  if (presets){
+    for (const name in presets) {
+      const value = presets[name]
+      if (typeof value === 'number') {
+        vars.set(name, { type: 'var', name, ast: value, deps: [] })
+      } else {
+        const [ast] = parse(value, varNames, new Set())
+        const deps = extractVariables(ast)
+        vars.set(name, { type: 'var', name, deps, ast: uniq.convert(ast) })
+      }
+    }
+  }
+
   const formulas: Formula[] = formulaTexts.map(f => {
     const match = f.match(varDefRegexp)
     const name = match?.[1]
@@ -73,10 +90,10 @@ function parseMultiple(formulaTexts: string[]) {
       console.log('')
       console.log(astToFunctionCode(expandedAST, args))
       console.log('')
-      console.log(astToRangeFunctionCode(expandedAST, args))
+      console.log(astToRangeFunctionCode(expandedAST, args, {}))
       console.log('')
       eval(astToFunctionCode(expandedAST, args))
-      eval(astToRangeFunctionCode(expandedAST, args))
+      eval(astToRangeFunctionCode(expandedAST, args, {}))
       return { ...f, ast: expandedAST }
     } catch(e) {
       return { ...f, ast: null, error: String(e) }
@@ -199,7 +216,7 @@ export function astToFunctionCode(ast: UniqASTNode, args: string[]) {
   return `(${args.join(',')})=>{${codes.join('\n')}\nreturn ${astToCode(rast, varNames)}}`
 }
 
-export function astToRangeFunctionCode(uniqAST: UniqASTNode, args: string[]) {
+export function astToRangeFunctionCode(uniqAST: UniqASTNode, args: string[], option: { pos?: boolean; neg?: boolean }) {
   const [tempVars, returnAST] = toProcedure(uniqAST)
   const namer = createNameGenerator()
   const vars: Record<string, MinMaxVarName> = {}
@@ -215,19 +232,56 @@ export function astToRangeFunctionCode(uniqAST: UniqASTNode, args: string[]) {
       return code
     }
   })
-  const [result, code] = astToRangeVarNameCode(
+  const [result, rcode] = astToRangeVarNameCode(
     returnAST,
     vars,
     expanders,
     namer
   )
-  if (typeof result === 'number') return `return ${result}`
-  const fullCode = [...codes, code, `return [${result[0]}, ${result[1]}]`].join('\n')
-  return `(${args.map(a => `${a}min,${a}max`).join(',')})=>{${fullCode}}`
+  const argsPart = `(${args.map(a => `${a}min,${a}max`).join(',')})`
+  const epsilon = 1e-15
+  if (typeof result === 'number') {
+    const val = isNaN(result) ? Results.NAN : result < -epsilon ? Results.NEG : result > epsilon ? Results.POS : Results.ZERO
+    return `${argsPart}=>${val}`
+  }
+  const fullCode = [...codes, rcode, `return [${result[0]}, ${result[1]}]`].join('\n')
+
+  const gapTest = fullCode.includes(GAPMARK)
+  const nanTest = fullCode.includes(NANMARK)
+  const gapPrepare = gapTest ? 'let _gap=false;' : ''
+  const nanPrepare = nanTest ? 'let _nan=false;' : ''
+  const preparePart = gapPrepare + nanPrepare
+  const [minvar, maxvar] = result
+  const markEmbeddedCode = fullCode.replaceAll(GAPMARK, '_gap=true;').replaceAll(NANMARK, '_nan=true;')
+  const gapRetPart = gapTest ? `_gap?${Results.HASGAP}:` : ''
+  const nanRetPart = nanTest ? `_nan?${Results.HASNAN}:` : ''
+  let returnPart: string
+  if (option.pos && option.neg) {
+    returnPart = `return ${nanRetPart}${minvar}>${epsilon}?${Results.POS}:${maxvar}<${-epsilon}?${Results.NEG}:${gapRetPart}${Results.BOTH}`
+  } else if (option.pos) {
+    returnPart = `return ${minvar}>${epsilon}?${nanRetPart}${Results.POS}:${maxvar}<${-epsilon}?${Results.NEG}:${gapRetPart}${Results.BOTH}`
+  } else if (option.neg) {
+    returnPart = `return ${minvar}>${epsilon}?${Results.POS}:${maxvar}<${-epsilon}?${nanRetPart}${Results.NEG}:${gapRetPart}${Results.BOTH}`
+  } else {
+    returnPart = `return ${minvar}>${epsilon}?${Results.POS}:${maxvar}<${-epsilon}?${Results.NEG}:${gapRetPart}${Results.BOTH}`
+  }
+  return `${argsPart}=>{${preparePart}${markEmbeddedCode};${returnPart}}`
 }
 
+export const presets2D: Presets = {
+  'pi': Math.PI,
+  'e': Math.E,
+  'r': 'hypot(x,y)',
+  'theta': 'atan2(y,x)'
+}
+export const presets3D: Presets = {
+  ...presets2D,
+  'r':'hypot(x,y,z)',
+  'phi':'atan2(hypot(x,y),z)',
+}
 
 const formulas = [
+  'r=x*x+y*y+th',
   '((x+y)+z)^2+sin((x+y)+z)+cos(x+y)',
   'e=2.71828',
   'a=12+x+b',
@@ -246,4 +300,4 @@ const formulas = [
   'x+y+S(3,5)+S(5,2)*(x+y)'
 ]
 
-console.log(parseMultiple(formulas))
+console.log(parseMultiple(formulas, ['x', 'y', 'z'], presets3D))
