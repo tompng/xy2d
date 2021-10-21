@@ -12,7 +12,7 @@ const alias: Record<string, string | undefined> = {
   'th': 'theta', 'θ': 'theta', 'φ': 'phi',
   'sgn': 'sign', 'signum': 'sign'
 }
-const tokenSet = new Set([...predefinedFunctionNames, ...operators, ...comparers, ',', ' '])
+const tokenSet = new Set([...predefinedFunctionNames, ...Object.keys(alias), ...operators, ...comparers, ',', ' '])
 
 type ParenGroup = (string | ParenGroup)[]
 function parseParen(input: string): ParenGroup {
