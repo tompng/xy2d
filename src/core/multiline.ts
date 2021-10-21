@@ -1,5 +1,5 @@
 import { parse, predefinedFunctionNames } from './parser'
-import { ASTNode, UniqASTNode, UniqASTOpNode, extractVariables, extractFunctions, astToCode, astToRangeVarNameCode } from './ast'
+import { ASTNode, UniqASTNode, UniqASTOpNode, extractVariables, extractFunctions, astToCode, astToRangeVarNameCode, evalOperatorArgs } from './ast'
 import { expanders, MinMaxVarName } from "./expander"
 
 type VarDef = { type: 'var'; name: string; deps: string[]; ast: UniqASTNode | null; error?: string }
@@ -67,7 +67,7 @@ function parseMultiple(formulaTexts: string[]) {
   return formulas.map(f => {
     if (!f.ast || f.type !== 'eq') return f
     try {
-      const expandedAST = expandAST(f.ast, vars, funcs, uniq)
+      const expandedAST = preEvaluateAST(expandAST(f.ast, vars, funcs, uniq), uniq)
       console.log('')
       console.log(astToFunction(expandedAST))
       console.log('')
@@ -217,6 +217,28 @@ export function astToFunction(ast: UniqASTNode) {
   const args = new Set(['x', 'y', 'z', ...vars.keys()])
   const codes = [...vars.entries()].map(([name, ast]) => `const ${name}=${astToCode(ast, args)}`)
   return codes.join('\n') + `\nreturn ${astToCode(rast, args)}`
+}
+
+function isNumberArray(arr: any[]): arr is number[] {
+  return arr.every(arg => typeof arg === 'number')
+}
+
+function preEvaluateAST(ast: UniqASTNode, uniq: UniqASTGenerator) {
+  const astResult = new Map<UniqASTNode, UniqASTNode>()
+  function traverse(ast: UniqASTNode): UniqASTNode {
+    if (typeof ast !== 'object') return ast
+    let result = astResult.get(ast)
+    if (result != null) return result
+    const args = ast.args.map(traverse)
+    if (isNumberArray(args)) {
+      const v = evalOperatorArgs(ast.op, args)
+      if (v != null) result = v
+    }
+    if (result == null) result = uniq.create(ast.op, args)
+    astResult.set(ast, result)
+    return result
+  }
+  return traverse(ast)
 }
 
 function createNameGenerator() {
