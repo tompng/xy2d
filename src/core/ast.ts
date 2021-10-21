@@ -1,5 +1,5 @@
-import { NameGenerator, createNameGenerator, UniqASTGenerator, MinMaxVarName, RangeResult } from './util'
-import { expanders, specialVariables, Results as results, GAPMARK, NANMARK, Expander } from "./expander"
+import { NameGenerator, UniqASTGenerator, MinMaxVarName, RangeResult } from './util'
+import { Expander } from "./expander"
 
 export type RangeFunction = (xmin: number, xmax: number, ymin: number, ymax: number) => RangeResult
 export type RangeFunction3D = (xmin: number, xmax: number, ymin: number, ymax: number, zmin: number, zmax: number) => RangeResult
@@ -140,20 +140,12 @@ export function astToRangeVarNameCode(
   namer: NameGenerator
 ): [MinMaxVarName | number, string] {
   const variables = extractVariables(ast)
-  const normalVariables = new Set(Object.keys(args))
+  const validVars = new Set(Object.keys(args))
   const codes: string[] = []
-  const specialArgs = { ...args }
-  ;[...new Set(variables)].forEach(varname => {
-    if (normalVariables.has(varname)) return
-    const expander = specialVariables[varname]
-    if (!expander) throw `Unknown variable ${varname}`
-    const [names, code] = expander(Object.values(args), namer)
-    codes.push(code)
-    specialArgs[varname] = names as MinMaxVarName
-  })
-  const [result, code] = astToRangeVarNameCodeRec(ast, specialArgs, expanders, namer)
-  codes.push(code)
-  return [result, codes.join(';')]
+  for (const varname of variables) {
+    if (!validVars.has(varname)) throw `Unknown variable ${varname}`
+  }
+  return astToRangeVarNameCodeRec(ast, args, expanders, namer)
 }
 
 function astToRangeVarNameCodeRec(ast: ASTNode, argMap: Record<string, MinMaxVarName>, expanders: Record<string, Expander>, namer: NameGenerator): [MinMaxVarName | number, string] {
