@@ -99,7 +99,7 @@ const FormulaStatus = React.memo<{ progress?: FormulaProgress }>(({ progress }) 
   </div>
 })
 
-function randomColor() {
+export function randomColor() {
   let s = '#'
   for (let i = 0; i < 3; i++) s += Math.floor(192 + 64 * Math.random()).toString(16)
   return s

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import { View as WGLView, RenderingOption, SurfaceObject } from '../view'
 import type { WorkerInput, WorkerOutput } from '../worker'
 import * as THREE from 'three'
+import { randomColor } from './Form'
 import { parseMultiple, astToValueFunctionCode, astToRangeFunctionCode, presets3D } from '../../core/multiline'
 
 export type Camera = {
@@ -165,7 +166,7 @@ type WorkerWatcher = {
 
 function initialFormulas(originalInputs: FormulaInputType[]): FormulaType[] {
   const inputs = [...originalInputs]
-  if (inputs.length === 0 || inputs[inputs.length - 1].text !== '') inputs.push({ text: '' })
+  if (inputs.length === 0 || inputs[inputs.length - 1].text !== '') inputs.push({ text: '', renderingOption: { color: randomColor() } })
   return inputs.map(({ text, renderingOption }) => ({
     id: String(Math.random()),
     text,
