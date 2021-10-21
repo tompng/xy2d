@@ -4,8 +4,6 @@ export const predefinedFunctionNames = new Set([
   'log', 'exp', 'sqrt', 'pow', 'hypot', 'sin', 'cos', 'tan', 'asin', 'acos', 'atan', 'sinh', 'cosh', 'tanh', 'asinh', 'acosh', 'atanh', 'atan2', '√', 'abs', 'arctan', 'min', 'max',
   'floor', 'ceil', 'round', 'sgn', 'sign', 'signum'
 ])
-const constantNames = new Set(['e', 'pi', 'π', 'PI', 'E'])
-const varNames = new Set(['x', 'y', 'z', 'th', 'theta', 'r', 'θ', 'phi', 'φ'])
 const comparers = new Set(['<', '=', '>', '<=', '>='])
 const operators = new Set(['+', '-', '*', '/', '^', '**'])
 const alias: Record<string, string | undefined> = {
@@ -14,7 +12,7 @@ const alias: Record<string, string | undefined> = {
   'th': 'theta', 'θ': 'theta', 'φ': 'phi',
   'sgn': 'sign', 'signum': 'sign'
 }
-const tokenSet = new Set([...predefinedFunctionNames, ...constantNames, ...varNames, ...operators, ...comparers, ',', ' '])
+const tokenSet = new Set([...predefinedFunctionNames, ...operators, ...comparers, ',', ' '])
 
 type ParenGroup = (string | ParenGroup)[]
 function parseParen(input: string): ParenGroup {
