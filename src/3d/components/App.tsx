@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { useFormulas, View, Camera, FormulaInputType } from './View'
-import { MathList } from './Form'
+import { MathList, randomColor } from './Form'
 import {
   Slider, Input,
   Dialog, DialogTitle, DialogContent,
@@ -37,7 +37,7 @@ function formulaAreaInitialHeight() {
 
 function getInitialFormula() {
   let radius = 1
-  let formulas: FormulaInputType[] = [{ text: 'r^3=1+4xyz' }]
+  let formulas: FormulaInputType[] = [{ text: 'r^3=1+4xyz', renderingOption: { color: randomColor() } }]
   try {
     const queries = location.search.substr(location.search[0] === '?' ? 1 : 0).split('&')
     for (const q of queries) {
@@ -63,13 +63,26 @@ function getInitialFormula() {
 }
 const [initialFormulas, initialRadius] = getInitialFormula()
 
-let replaceStateTimer: number | null = null
+const debounce = {
+  time: null as number | null,
+  timer: null as number | null,
+  path: '',
+  interval: 1000
+}
 function replacePath(path: string) {
-  if (replaceStateTimer != null) clearTimeout(replaceStateTimer)
-  replaceStateTimer = setTimeout(() => {
-    replaceStateTimer = null
+  debounce.path = path
+  const time = performance.now()
+  if (debounce.timer) return
+  if (debounce.time == null || time - debounce.time > debounce.interval) {
+    debounce.time = time
     history.replaceState({}, '', path)
-  }, 500) as unknown as number
+    return
+  }
+  debounce.timer = setTimeout(() => {
+    debounce.timer = null
+    debounce.time = performance.now()
+    history.replaceState({}, '', debounce.path)
+  }, debounce.interval) as unknown as number
 }
 
 export const App: React.VFC = () => {

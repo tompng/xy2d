@@ -1,8 +1,10 @@
-import { astToFunction, astToRangeFunction, extractVariables } from '../core/ast'
+import { extractVariables } from '../core/ast'
 import { parse } from '../core/parser'
 import { View } from './view'
 import css from 'mathquill/build/mathquill.css'
 import { convertLatex } from '../core/latex'
+import { ValueFunction2D, RangeFunction2D } from '../core/util'
+import { parseMultiple, presets2D, astToRangeFunctionCode, astToValueFunctionCode } from '../core/multiline'
 
 const style = document.createElement('style')
 style.textContent = css
@@ -49,17 +51,19 @@ setTimeout(() => {
 
 let _view: View | undefined
 function calc(exp: string) {
-  let [ast, mode] = parse(exp)
+  const argNames = ['x', 'y']
+  const [parsed] = parseMultiple([exp], argNames, presets2D)
+  if (parsed.type !== 'eq') throw 'not an equation'
+  if (!parsed.ast) throw String(parsed.error)
+  let { ast, mode } = parsed
+
   const variables = extractVariables(ast)
   if (!mode && variables.length <= 1) {
     if (variables.length === 0 || variables[0] === 'x') {
-      ast = { op: '-', args: ['y', ast] }
+      ast = { op: '-', args: ['y', ast], uniqId: -1, uniqKey: '' }
       mode = '='
     } else if (variables[0] === 'y') {
-      ast = { op: '-', args: ['x', ast] }
-      mode = '='
-    } else if (variables[0] === 'theta') {
-      ast = { op: '-', args: ['r', ast] }
+      ast = { op: '-', args: ['x', ast], uniqId: -1, uniqKey: '' }
       mode = '='
     }
   }
@@ -68,8 +72,9 @@ function calc(exp: string) {
     pos: mode !== '=',
     neg: mode === null
   }
-  const frange = astToRangeFunction(ast, compareOption)
-  const fvalue = astToFunction(ast)
+  const frange: RangeFunction2D = eval(astToRangeFunctionCode(parsed.ast, argNames, compareOption))
+  const fvalue: ValueFunction2D = eval(astToValueFunctionCode(parsed.ast, argNames))
+
   const colors =
     mode === '=' ? { zero: '#aaa', line: 'black' } :
     mode === '>' ? { pos: '#aaf', line: '#444' } :

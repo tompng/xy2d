@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { astTo3DFunction, astTo3DRangeFunction } from '../../core/ast'
-import { parse } from '../../core/parser'
 import { View as WGLView, RenderingOption, SurfaceObject } from '../view'
 import type { WorkerInput, WorkerOutput } from '../worker'
 import * as THREE from 'three'
+import { randomColor } from './Form'
+import { parseMultiple, astToValueFunctionCode, astToRangeFunctionCode, presets3D } from '../../core/multiline'
 
 export type Camera = {
   distance: number
@@ -87,20 +87,29 @@ export const View = React.memo<ViewProps>(({ watcher, camera, onCameraChange, wi
 })
 
 export type FormulaProgress = {
+  type: 'eq' | 'var' | 'func' | null
   resolution: number
   complete: boolean
-  error: string | null
+  name?: string
+  value?: number
+  error?: string
 }
 class PolygonizeWorker {
   worker = new Worker('./dist/worker3d.js')
   state: FormulaProgress = {
+    type: 'eq',
     resolution: 0,
     complete: false,
-    error: null
   }
-  constructor(public text: string, public radius: number, public onChange: () => void, public geometry: THREE.BufferGeometry | null = null) {
+  constructor(public valueCode: string | null, public rangeCode: string | null, public radius: number, public onChange: () => void, public geometry: THREE.BufferGeometry | null = null) {
     try {
-      this.run()
+      if (valueCode && rangeCode) {
+        this.run(valueCode, rangeCode)
+        console.log(valueCode, rangeCode)
+      } else {
+        this.geometry?.dispose()
+        this.geometry = null
+      }
     } catch (e) {
       this.state = { ...this.state, complete: true, error: String(e) }
       if (this.state.resolution === 0) {
@@ -110,11 +119,8 @@ class PolygonizeWorker {
       this.onChange()
     }
   }
-  run() {
-    const [ast] = parse(this.text)
-    const frange = astTo3DRangeFunction(ast, { pos: false, neg: false })
-    const fvalue = astTo3DFunction(ast)
-    const inputData: WorkerInput = { frange: frange.toString(), fvalue: fvalue.toString(), radius: this.radius }
+  run(fvalue: string, frange: string) {
+    const inputData: WorkerInput = { fvalue, frange, radius: this.radius }
     this.worker.postMessage(inputData)
     this.worker.addEventListener('message', (e: MessageEvent<WorkerOutput>) => {
       const { data } = e
@@ -160,7 +166,7 @@ type WorkerWatcher = {
 
 function initialFormulas(originalInputs: FormulaInputType[]): FormulaType[] {
   const inputs = [...originalInputs]
-  if (inputs.length === 0 || inputs[inputs.length - 1].text !== '') inputs.push({ text: '' })
+  if (inputs.length === 0 || inputs[inputs.length - 1].text !== '') inputs.push({ text: '', renderingOption: { color: randomColor() } })
   return inputs.map(({ text, renderingOption }) => ({
     id: String(Math.random()),
     text,
@@ -175,21 +181,59 @@ export function useFormulas(
   const watcherRef = useRef<WorkerWatcher>({ workers: new Map(), renderingOptions: new Map() })
   useEffect(() => {
     const workers = watcherRef.current.workers
+    const args = ['x', 'y', 'z']
+    const parsedFormulas = parseMultiple(formulas.map(f => f.text), args, presets3D)
+
     const update = () => {
       setFormulas(formulas => formulas.map(f => ({ ...f, progress: workers.get(f.id)?.state })))
       watcherRef.current.onUpdate?.()
     }
     let changed = false
-    for (const { id, text } of formulas) {
+    for (let i = 0; i < formulas.length; i++) {
+      const { id } = formulas[i]
+      const parsed = parsedFormulas[i]
       let w = workers.get(id)
-      if (!w || w.text !== text || w.radius !== radius) {
+      let valueCode: string | null = null
+      let rangeCode: string | null = null
+      if (parsed.type === 'eq' && parsed.ast && !parsed.error) {
+        try {
+          valueCode =  astToValueFunctionCode(parsed.ast, args)
+          rangeCode =  astToRangeFunctionCode(parsed.ast, args, { pos: false, neg: false })
+        } catch(e) {
+          valueCode = rangeCode = null
+          parsed.error = String(e)
+        }
+      }
+      if (!w || w.valueCode !== valueCode || w.rangeCode !== rangeCode || w.radius !== radius) {
         changed = true
-        const newWorker = new PolygonizeWorker(text, radius, update, w?.geometry)
+        const geometry = w?.geometry
         if (w) {
           w.geometry = null
           w.terminate()
         }
-        workers.set(id, newWorker)
+        w = new PolygonizeWorker(valueCode, rangeCode, radius, update, geometry)
+        workers.set(id, w)
+      }
+      let nextState: FormulaProgress | null = null
+      if (parsed.error) {
+        nextState = {
+          type: null,
+          resolution: 0,
+          complete: true,
+          error: parsed.error
+        }
+      } else if (parsed.type !== 'eq') {
+        nextState = {
+          type: parsed.type,
+          resolution: 0,
+          complete: true,
+          name: parsed.name,
+          value: typeof parsed.ast === 'number' ? parsed.ast : undefined
+        }
+      }
+      if (nextState && JSON.stringify(nextState) !== JSON.stringify(w.state)) {
+        w.state = nextState
+        changed = true
       }
     }
     const ids = new Set(formulas.map(f => f.id))

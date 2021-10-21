@@ -3,7 +3,8 @@ module.exports = {
   entry: {
     index2d: './src/2d/index.ts',
     index3d: './src/3d/index.tsx',
-    worker3d: './src/3d/worker.ts'
+    worker3d: './src/3d/worker.ts',
+    multilinedebug: './src/core/multiline.ts'
   },
   output: {
     path: `${__dirname}/dist`,

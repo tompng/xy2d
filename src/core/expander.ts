@@ -1,8 +1,7 @@
-export type MinMaxVarName = [string, string]
-export type Expander = (args: (MinMaxVarName | number)[], namer: NameGenerator) => [MinMaxVarName | number, string]
-export type NameGenerator = () => string
+import type { MinMaxVarName, NameGenerator } from './util'
 
-export type RangeResult = -3 | -2 | -1 | 0 | 1 | 2 | 3
+export type Expander = (args: (MinMaxVarName | number)[], namer: NameGenerator) => [MinMaxVarName | number, string]
+
 const HASGAP = -3
 const HASNAN = -2
 const BOTH = -1
@@ -10,7 +9,7 @@ const ZERO = 0
 const NEG = 1
 const POS = 2
 const NAN = 3
-export const results = { NEG, POS, BOTH, HASGAP, HASNAN, NAN, ZERO }
+export const Results = { NEG, POS, BOTH, HASGAP, HASNAN, NAN, ZERO }
 export const GAPMARK = '/*GAP*/'
 export const NANMARK = '/*NAN*/'
 
@@ -454,16 +453,4 @@ export const expanders = {
   ceil,
   round,
   sign,
-}
-
-export const specialVariables: Record<string, Expander> = {
-  theta: ([x, y], namer) => atan2([y, x], namer),
-  r: hypot,
-  phi: (args, namer) => {
-    if (args.length !== 3) throw 'cannot use `φ` in 2D mode'
-    const [x, y, z] = args
-    const [rxy, hypotCode] = hypot([x, y], namer)
-    const [res, atanCode] = atan2([rxy, z], namer)
-    return [res, `${hypotCode};${atanCode}`]
-  }
 }
