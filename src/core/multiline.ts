@@ -85,7 +85,7 @@ export function parseMultiple(formulaTexts: string[], argNames: string[], preset
   recursiveCheck(formulas, defs)
   const preEvaluateResults = new Map<UniqASTNode, UniqASTNode>()
   return formulas.map(f => {
-    if (!f.ast) return f
+    if (!f.ast || f.error) return f
     if (f.type === 'func') return f
     try {
       const expandedAST = preEvaluateAST(expandAST(f.ast, vars, funcs, uniq), uniq, preEvaluateResults)
@@ -102,7 +102,7 @@ function recursiveCheck(formulas: Formula[], defs: Map<string, Definition>) {
     if (formula.error) return
     if (formula.type !== 'eq') {
       if (rec.has(formula.name)) {
-        formula.error = `recursive`
+        formula.error = `cannot define recursively: ${formula.name}`
         return
       }
       rec.add(formula.name)
@@ -112,7 +112,9 @@ function recursiveCheck(formulas: Formula[], defs: Map<string, Definition>) {
       if (d) check(d)
     }
     const errorDep = formula.deps.find(n => defs.get(n)?.error)
-    if (errorDep) formula.error = formula.error || `${errorDep} is not defined`
+    if (errorDep) {
+      formula.error = formula.error || `${errorDep} is not defined`
+    }
     if (formula.type !== 'eq') rec.delete(formula.name)
   }
   for (const f of formulas) check(f)
@@ -273,38 +275,4 @@ export const presets3D: Presets = {
   ...presets2D,
   'r':'hypot(x,y,z)',
   'phi':'atan2(hypot(x,y),z)',
-}
-
-const formulas = [
-  'r=x*x+y*y+th',
-  '((x+y)+z)^2+sin((x+y)+z)+cos(x+y)',
-  'u=-1.23',
-  'k=2.71828+e',
-  'g=k-π',
-  'a=12+x+b',
-  'sin(x+y+a*e)=(b*x+y+e^x)',
-  'b=x+y+z',
-  'a+xy',
-  'f(x,y,w)=x+y+a+w+z',
-  'f(x,y,z)=1',
-  'b=xy',
-  'f(x,y,3)=f(f(f(y,x,2),f(y,x,2),3),f(f(y,x,2),f(y,x,2),3),xyz)',
-  'R(a,b)=a*a-b*b+x',
-  'I(a,b)=2*a*b+y',
-  'S(a,b)=R(R(R(a,b),I(a,b)),I(R(a,b),I(a,b)))',
-  'J(a,b)=I(R(R(a,b),I(a,b)),I(R(a,b),I(a,b)))',
-  'S(S(x,y),J(x,y))**2+J(S(x,y),J(x,y))**2<4',
-  'x+y+S(3,5)+S(5,2)*(x+y)'
-]
-
-const argNames = ['x', 'y', 'z']
-const parsedFormulas = parseMultiple(formulas, argNames, presets3D)
-for (const f of parsedFormulas) {
-  console.log(f)
-  if (f.type === 'eq' && f.ast) {
-    console.log(astToValueFunctionCode(f.ast, argNames))
-    console.log(astToRangeFunctionCode(f.ast, argNames, {}))
-    console.log(eval(astToValueFunctionCode(f.ast, argNames))(0,1,2))
-    console.log(eval(astToRangeFunctionCode(f.ast, argNames, {}))(0,0.1,1,1.1,2,2.1))
-  }
 }

@@ -194,7 +194,7 @@ export function useFormulas(
       let w = workers.get(id)
       let valueCode: string | null = null
       let rangeCode: string | null = null
-      if (parsed.type === 'eq' && parsed.ast) {
+      if (parsed.type === 'eq' && parsed.ast && !parsed.error) {
         valueCode =  astToValueFunctionCode(parsed.ast, args)
         rangeCode =  astToRangeFunctionCode(parsed.ast, args, { pos: false, neg: false })
       }

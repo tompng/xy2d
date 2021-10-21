@@ -207,7 +207,6 @@ function boundingCubeLineSegments() {
     for (let j = 0; j < 8; j++) {
       const ij = i ^ j
       if (ij === 1 || ij === 2 || ij === 4) positions.push(...p(i), ...p(j))
-      if (ij === 1 || ij === 2 || ij === 4) console.log(p(i), p(j))
     }
   }
   const geometry = new THREE.BufferGeometry()
