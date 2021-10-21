@@ -1,5 +1,5 @@
 import { NameGenerator, createNameGenerator, UniqASTGenerator, MinMaxVarName, RangeResult } from './util'
-import { expanders, specialVariables, results, GAPMARK, NANMARK, Expander } from "./expander"
+import { expanders, specialVariables, Results as results, GAPMARK, NANMARK, Expander } from "./expander"
 
 export type RangeFunction = (xmin: number, xmax: number, ymin: number, ymax: number) => RangeResult
 export type RangeFunction3D = (xmin: number, xmax: number, ymin: number, ymax: number, zmin: number, zmax: number) => RangeResult

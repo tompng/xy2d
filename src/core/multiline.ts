@@ -1,12 +1,12 @@
 import { parse, predefinedFunctionNames } from './parser'
 import { ASTNode, UniqASTNode, UniqASTOpNode, extractVariables, extractFunctions, astToCode, astToRangeVarNameCode, preEvaluateAST } from './ast'
-import { expanders, results as Results, GAPMARK, NANMARK } from "./expander"
-import { createNameGenerator, MinMaxVarName, UniqASTGenerator } from './util'
+import { expanders, Results, GAPMARK, NANMARK } from "./expander"
+import { createNameGenerator, MinMaxVarName, CompareMode, UniqASTGenerator } from './util'
 
 export type Presets = Record<string, string | number>
 type VarDef = { type: 'var'; name: string; deps: string[]; ast: UniqASTNode | null; error?: string }
 type FuncDef = { type: 'func'; name: string; deps: string[]; args: string[]; ast: UniqASTNode | null; error?: string }
-type Equation = { type: 'eq'; deps: string[]; ast: UniqASTNode | null; error?: string }
+type Equation = { type: 'eq'; mode: CompareMode; deps: string[]; ast: UniqASTNode | null; error?: string }
 type Definition = VarDef | FuncDef
 type Formula = Definition | Equation
 export function parseMultiple(formulaTexts: string[], argNames: string[], presets?: Presets) {
@@ -43,13 +43,13 @@ export function parseMultiple(formulaTexts: string[], argNames: string[], preset
   const formulas: Formula[] = formulaTexts.map(f => {
     const match = f.match(varDefRegexp)
     const name = match?.[1]
-    if (!match || !name || vars.has(name) || funcs.has(name) || predefinedFunctionNames.has(name)) {
+    if (!match || !name || vars.has(name) || funcs.has(name) || predefinedVars.has(name) || predefinedFunctionNames.has(name)) {
       try {
-        const [ast] = parse(f, varNames, funcNames)
+        const [ast, mode] = parse(f, varNames, funcNames)
         const deps = extractVariables(ast)
-        return { type: 'eq', deps, ast: uniq.convert(ast) }
+        return { type: 'eq', mode, deps, ast: uniq.convert(ast) }
       } catch (e) {
-        return { type: 'eq', deps: [], ast: null, error: String(e) }
+        return { type: 'eq', mode: null, deps: [], ast: null, error: String(e) }
       }
     }
     const argpart = match[2]
@@ -58,7 +58,8 @@ export function parseMultiple(formulaTexts: string[], argNames: string[], preset
       const args = argpart.substring(1, argpart.length - 1).split(',').map(s => s.trim())
       let definition: FuncDef
       try {
-        const [ast] = parse(body, new Set([...varNames, ...args]), funcNames)
+        const [ast, mode] = parse(body, new Set([...varNames, ...args]), funcNames)
+        if (mode != null) throw `invalid compare operator`
         const variables = extractVariables(ast).filter(n => !args.includes(n))
         const deps = [...variables, ...extractFunctions(ast, funcNames)]
         definition = { type: 'func', name, deps, args, ast: uniq.convert(ast) }
@@ -203,7 +204,7 @@ function toProcedure(ast: UniqASTNode) {
   return [vars, replace(ast, true)] as const
 }
 
-export function astToFunctionCode(ast: UniqASTNode, args: string[]) {
+export function astToValueFunctionCode(ast: UniqASTNode, args: string[]) {
   const [vars, rast] = toProcedure(ast)
   const varNames = new Set([...args, ...vars.keys()])
   const codes = [...vars.entries()].map(([name, ast]) => `const ${name}=${astToCode(ast, varNames)}`)
@@ -301,9 +302,9 @@ const parsedFormulas = parseMultiple(formulas, argNames, presets3D)
 for (const f of parsedFormulas) {
   console.log(f)
   if (f.type === 'eq' && f.ast) {
-    console.log(astToFunctionCode(f.ast, argNames))
+    console.log(astToValueFunctionCode(f.ast, argNames))
     console.log(astToRangeFunctionCode(f.ast, argNames, {}))
-    console.log(eval(astToFunctionCode(f.ast, argNames))(0,1,2))
+    console.log(eval(astToValueFunctionCode(f.ast, argNames))(0,1,2))
     console.log(eval(astToRangeFunctionCode(f.ast, argNames, {}))(0,0.1,1,1.1,2,2.1))
   }
 }

@@ -1,7 +1,4 @@
-import type { RangeResult } from '../core/util'
-type FRange = (xmin: number, xmax: number, ymin: number, ymax: number) => RangeResult
-type FValue = (x: number, y: number) => number
-
+import type { RangeResult, ValueFunction2D, RangeFunction2D } from '../core/util'
 export class Solver {
   stepPerRun = 4
   completed = false
@@ -10,8 +7,8 @@ export class Solver {
   pointResults: number[] = []
   areaPointResult: number[] = []
   constructor(
-    public fRange: FRange,
-    public fValue: FValue,
+    public fRange: RangeFunction2D,
+    public fValue: ValueFunction2D,
     public range: { x: number; y: number; size: number },
     public resolution: number
   ) {}

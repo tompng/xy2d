@@ -1,4 +1,5 @@
 import type { ASTNode } from './ast'
+import type { CompareMode } from './util'
 export const predefinedFunctionNames = new Set([
   'log', 'exp', 'sqrt', 'pow', 'hypot', 'sin', 'cos', 'tan', 'asin', 'acos', 'atan', 'sinh', 'cosh', 'tanh', 'asinh', 'acosh', 'atanh', 'atan2', '√', 'abs', 'arctan', 'min', 'max',
   'floor', 'ceil', 'round', 'sgn', 'sign', 'signum'
@@ -97,7 +98,7 @@ export function parse(s: string, extraVariables?: Set<string>, extraFunctions?: 
   return buildRootAST(tg, functions)
 }
 
-function buildRootAST(group: TokenParenGroup, functionNames: Set<string>): [ASTNode, '=' | '>' | '>=' | null] {
+function buildRootAST(group: TokenParenGroup, functionNames: Set<string>): [ASTNode, CompareMode] {
   const idx = group.findIndex(item => typeof item === 'string' && comparers.has(item))
   if (idx === -1) {
     const ast = buildAST(group, functionNames)

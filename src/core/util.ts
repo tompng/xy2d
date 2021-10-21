@@ -9,6 +9,7 @@ export type ASTNode = string | number | ASTOpNode
 export type UniqASTOpNode = { op: string; args: UniqASTNode[]; uniqId: number, uniqKey: string }
 export type UniqASTNode = string | number | UniqASTOpNode
 export type NameGenerator = () => string
+export type CompareMode = '=' | '>' | '>=' | null
 
 export function createNameGenerator(): NameGenerator {
   let nameGeneratorIndex = 9

@@ -9,7 +9,7 @@ const ZERO = 0
 const NEG = 1
 const POS = 2
 const NAN = 3
-export const results = { NEG, POS, BOTH, HASGAP, HASNAN, NAN, ZERO }
+export const Results = { NEG, POS, BOTH, HASGAP, HASNAN, NAN, ZERO }
 export const GAPMARK = '/*GAP*/'
 export const NANMARK = '/*NAN*/'
 
