@@ -86,16 +86,19 @@ export const View = React.memo<ViewProps>(({ watcher, camera, onCameraChange, wi
 })
 
 export type FormulaProgress = {
+  type: 'eq' | 'var' | 'func' | null
   resolution: number
   complete: boolean
-  error: string | null
+  name?: string
+  value?: number
+  error?: string
 }
 class PolygonizeWorker {
   worker = new Worker('./dist/worker3d.js')
   state: FormulaProgress = {
+    type: 'eq',
     resolution: 0,
     complete: false,
-    error: null
   }
   constructor(public valueCode: string | null, public rangeCode: string | null, public radius: number, public onChange: () => void, public geometry: THREE.BufferGeometry | null = null) {
     try {
@@ -186,19 +189,45 @@ export function useFormulas(
     }
     let changed = false
     for (let i = 0; i < formulas.length; i++) {
-      const { id, text } = formulas[i]
+      const { id } = formulas[i]
       const parsed = parsedFormulas[i]
       let w = workers.get(id)
-      const valueCode = parsed.ast ? astToValueFunctionCode(parsed.ast, args) : null
-      const rangeCode = parsed.ast ? astToRangeFunctionCode(parsed.ast, args, { pos: false, neg: false }) : null
+      let valueCode: string | null = null
+      let rangeCode: string | null = null
+      if (parsed.type === 'eq' && parsed.ast) {
+        valueCode =  astToValueFunctionCode(parsed.ast, args)
+        rangeCode =  astToRangeFunctionCode(parsed.ast, args, { pos: false, neg: false })
+      }
       if (!w || w.valueCode !== valueCode || w.rangeCode !== rangeCode || w.radius !== radius) {
         changed = true
-        const newWorker = new PolygonizeWorker(valueCode, rangeCode, radius, update, w?.geometry)
+        const geometry = w?.geometry
         if (w) {
           w.geometry = null
           w.terminate()
         }
-        workers.set(id, newWorker)
+        w = new PolygonizeWorker(valueCode, rangeCode, radius, update, geometry)
+        workers.set(id, w)
+      }
+      let nextState: FormulaProgress | null = null
+      if (parsed.error) {
+        nextState = {
+          type: null,
+          resolution: 0,
+          complete: true,
+          error: parsed.error
+        }
+      } else if (parsed.type !== 'eq') {
+        nextState = {
+          type: parsed.type,
+          resolution: 0,
+          complete: true,
+          name: parsed.name,
+          value: typeof parsed.ast === 'number' ? parsed.ast : undefined
+        }
+      }
+      if (nextState && JSON.stringify(nextState) !== JSON.stringify(w.state)) {
+        w.state = nextState
+        changed = true
       }
     }
     const ids = new Set(formulas.map(f => f.id))

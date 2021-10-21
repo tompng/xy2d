@@ -23,6 +23,7 @@ const MathListItem = React.memo<MathListItemProps>(({ formula, update }) => {
   const dndStyle = {
     transform: sortable.transform ? `translate3D(0, ${sortable.transform.y}px, 0)` : ''
   }
+  const isDef = formula.progress?.type === 'var' || formula.progress?.type === 'func'
   const [dialogOpen, setDialogOpen] = useState(false)
   return (
     <div ref={sortable.setNodeRef} style={dndStyle}>
@@ -43,15 +44,20 @@ const MathListItem = React.memo<MathListItemProps>(({ formula, update }) => {
         >
           <ClickableInsideDND onClick={() => setDialogOpen(true)}>
             <div style={{
-              backgroundColor: formula.renderingOption.color ?? 'white',
+              backgroundColor: (!isDef && formula.renderingOption.color) || 'white',
               position: 'absolute',
               left: 16,
               top: 16,
               width: 32,
               height: 32,
+              lineHeight: '30px',
+              textAlign: 'center',
+              fontSize: '12px',
               borderRadius: '50%',
               border: '2px solid gray'
-            }} />
+            }}>
+              {isDef && 'def'}
+            </div>
           </ClickableInsideDND>
         </div>
         <ListItemText style={{ position: 'relative' }}>
@@ -78,16 +84,29 @@ const MathListItem = React.memo<MathListItemProps>(({ formula, update }) => {
 
 const FormulaStatus = React.memo<{ progress?: FormulaProgress }>(({ progress }) => {
   if (!progress) return null
-  const { complete, error, resolution } = progress
-  const rmessage = resolution === 0 ? '' : [resolution, resolution, resolution].join('×')
-  const message = error || (complete ? '' : '...')
+  const { name, complete, error, resolution, value } = progress
+  let message: string | null = null
+  if (resolution > 0) {
+    const res = resolution === 0 ? '' : [resolution, resolution, resolution].join('×')
+    message = res + (error || (complete ? '' : '...'))
+  } else if (error) {
+    message = error
+  } else if (value != null) {
+    message = `${name} = ${value}`
+  }
   return <div style={{ position: 'absolute', left: 0, bottom: 0, color: error ? 'red' : '', fontSize: '12px' }}>
-    {rmessage}{message}
+    {message}
   </div>
 })
 
+function randomColor() {
+  let s = '#'
+  for (let i = 0; i < 3; i++) s += Math.floor(192 + 64 * Math.random()).toString(16)
+  return s
+}
+
 export function newFormula(text = ''): FormulaType {
-  return { id: String(Math.random()), text, renderingOption: {} }
+  return { id: String(Math.random()), text, renderingOption: { color: randomColor() } }
 }
 function normalizeFormulas(formulas: FormulaType[]) {
   const normalized = [...formulas]
