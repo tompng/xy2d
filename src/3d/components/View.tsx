@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { astTo3DFunction, astTo3DRangeFunction } from '../../core/ast'
-import { parse } from '../../core/parser'
 import { View as WGLView, RenderingOption, SurfaceObject } from '../view'
 import type { WorkerInput, WorkerOutput } from '../worker'
 import * as THREE from 'three'
+import { parseMultiple, astToValueFunctionCode, astToRangeFunctionCode, presets3D } from '../../core/multiline'
 
 export type Camera = {
   distance: number
@@ -98,9 +97,15 @@ class PolygonizeWorker {
     complete: false,
     error: null
   }
-  constructor(public text: string, public radius: number, public onChange: () => void, public geometry: THREE.BufferGeometry | null = null) {
+  constructor(public valueCode: string | null, public rangeCode: string | null, public radius: number, public onChange: () => void, public geometry: THREE.BufferGeometry | null = null) {
     try {
-      this.run()
+      if (valueCode && rangeCode) {
+        this.run(valueCode, rangeCode)
+        console.log(valueCode, rangeCode)
+      } else {
+        this.geometry?.dispose()
+        this.geometry = null
+      }
     } catch (e) {
       this.state = { ...this.state, complete: true, error: String(e) }
       if (this.state.resolution === 0) {
@@ -110,11 +115,8 @@ class PolygonizeWorker {
       this.onChange()
     }
   }
-  run() {
-    const [ast] = parse(this.text)
-    const frange = astTo3DRangeFunction(ast, { pos: false, neg: false })
-    const fvalue = astTo3DFunction(ast)
-    const inputData: WorkerInput = { frange: frange.toString(), fvalue: fvalue.toString(), radius: this.radius }
+  run(fvalue: string, frange: string) {
+    const inputData: WorkerInput = { fvalue, frange, radius: this.radius }
     this.worker.postMessage(inputData)
     this.worker.addEventListener('message', (e: MessageEvent<WorkerOutput>) => {
       const { data } = e
@@ -175,16 +177,23 @@ export function useFormulas(
   const watcherRef = useRef<WorkerWatcher>({ workers: new Map(), renderingOptions: new Map() })
   useEffect(() => {
     const workers = watcherRef.current.workers
+    const args = ['x', 'y', 'z']
+    const parsedFormulas = parseMultiple(formulas.map(f => f.text), args, presets3D)
+
     const update = () => {
       setFormulas(formulas => formulas.map(f => ({ ...f, progress: workers.get(f.id)?.state })))
       watcherRef.current.onUpdate?.()
     }
     let changed = false
-    for (const { id, text } of formulas) {
+    for (let i = 0; i < formulas.length; i++) {
+      const { id, text } = formulas[i]
+      const parsed = parsedFormulas[i]
       let w = workers.get(id)
-      if (!w || w.text !== text || w.radius !== radius) {
+      const valueCode = parsed.ast ? astToValueFunctionCode(parsed.ast, args) : null
+      const rangeCode = parsed.ast ? astToRangeFunctionCode(parsed.ast, args, { pos: false, neg: false }) : null
+      if (!w || w.valueCode !== valueCode || w.rangeCode !== rangeCode || w.radius !== radius) {
         changed = true
-        const newWorker = new PolygonizeWorker(text, radius, update, w?.geometry)
+        const newWorker = new PolygonizeWorker(valueCode, rangeCode, radius, update, w?.geometry)
         if (w) {
           w.geometry = null
           w.terminate()
