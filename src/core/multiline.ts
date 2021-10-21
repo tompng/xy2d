@@ -82,18 +82,12 @@ export function parseMultiple(formulaTexts: string[], argNames: string[], preset
   })
   const defs = new Map<string, Definition>([...vars.entries(), ...funcs.entries()])
   recursiveCheck(formulas, defs)
+  const preEvaluateResults = new Map<UniqASTNode, UniqASTNode>()
   return formulas.map(f => {
-    if (!f.ast || f.type !== 'eq') return f
+    if (!f.ast) return f
+    if (f.type === 'func') return f
     try {
-      const expandedAST = preEvaluateAST(expandAST(f.ast, vars, funcs, uniq), uniq)
-      const args = ['x', 'y', 'z']
-      console.log('')
-      console.log(astToFunctionCode(expandedAST, args))
-      console.log('')
-      console.log(astToRangeFunctionCode(expandedAST, args, {}))
-      console.log('')
-      eval(astToFunctionCode(expandedAST, args))
-      eval(astToRangeFunctionCode(expandedAST, args, {}))
+      const expandedAST = preEvaluateAST(expandAST(f.ast, vars, funcs, uniq), uniq, preEvaluateResults)
       return { ...f, ast: expandedAST }
     } catch(e) {
       return { ...f, ast: null, error: String(e) }
@@ -244,7 +238,7 @@ export function astToRangeFunctionCode(uniqAST: UniqASTNode, args: string[], opt
     const val = isNaN(result) ? Results.NAN : result < -epsilon ? Results.NEG : result > epsilon ? Results.POS : Results.ZERO
     return `${argsPart}=>${val}`
   }
-  const fullCode = [...codes, rcode, `return [${result[0]}, ${result[1]}]`].join('\n')
+  const fullCode = [...codes, rcode].join('\n')
 
   const gapTest = fullCode.includes(GAPMARK)
   const nanTest = fullCode.includes(NANMARK)
@@ -283,7 +277,9 @@ export const presets3D: Presets = {
 const formulas = [
   'r=x*x+y*y+th',
   '((x+y)+z)^2+sin((x+y)+z)+cos(x+y)',
-  'e=2.71828',
+  'u=-1.23',
+  'k=2.71828+e',
+  'g=k-π',
   'a=12+x+b',
   'sin(x+y+a*e)=(b*x+y+e^x)',
   'b=x+y+z',
@@ -300,4 +296,14 @@ const formulas = [
   'x+y+S(3,5)+S(5,2)*(x+y)'
 ]
 
-console.log(parseMultiple(formulas, ['x', 'y', 'z'], presets3D))
+const argNames = ['x', 'y', 'z']
+const parsedFormulas = parseMultiple(formulas, argNames, presets3D)
+for (const f of parsedFormulas) {
+  console.log(f)
+  if (f.type === 'eq' && f.ast) {
+    console.log(astToFunctionCode(f.ast, argNames))
+    console.log(astToRangeFunctionCode(f.ast, argNames, {}))
+    console.log(eval(astToFunctionCode(f.ast, argNames))(0,1,2))
+    console.log(eval(astToRangeFunctionCode(f.ast, argNames, {}))(0,0.1,1,1.1,2,2.1))
+  }
+}

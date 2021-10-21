@@ -102,8 +102,7 @@ export function compactAST(ast: ASTNode, constants: Record<string, number>): AST
   return { op: ast.op, args }
 }
 
-export function preEvaluateAST(ast: UniqASTNode, uniq: UniqASTGenerator) {
-  const astResult = new Map<UniqASTNode, UniqASTNode>()
+export function preEvaluateAST(ast: UniqASTNode, uniq: UniqASTGenerator, astResult = new Map<UniqASTNode, UniqASTNode>()) {
   function traverse(ast: UniqASTNode): UniqASTNode {
     if (typeof ast !== 'object') return ast
     let result = astResult.get(ast)
