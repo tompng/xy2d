@@ -1,6 +1,6 @@
 import { parse, predefinedFunctionNames } from './parser'
-import { ASTNode, UniqASTNode, extractVariables, extractFunctions, astToCode, astToRangeVarNameCode } from './ast'
-import { expanders, specialVariables, results, GAPMARK, NANMARK, Expander, MinMaxVarName, NameGenerator, RangeResult } from "./expander"
+import { ASTNode, UniqASTNode, UniqASTOpNode, extractVariables, extractFunctions, astToCode, astToRangeVarNameCode } from './ast'
+import { expanders, MinMaxVarName } from "./expander"
 
 type VarDef = { type: 'var'; name: string; deps: string[]; ast: UniqASTNode | null; error?: string }
 type FuncDef = { type: 'func'; name: string; deps: string[]; args: string[]; ast: UniqASTNode | null; error?: string }
@@ -73,6 +73,8 @@ function parseMultiple(formulaTexts: string[]) {
       console.log('')
       console.log(astToRangeFunction(expandedAST))
       console.log('')
+      eval(`(x,y,z)=>{${astToFunction(expandedAST)}}`)
+      eval(`(xmin,xmax,ymin,ymax,zmin,zmax)=>{${astToRangeFunction(expandedAST)}}`)
       return { ...f, ast: expandedAST }
     } catch(e) {
       return { ...f, ast: null, error: String(e) }
@@ -168,23 +170,31 @@ class UniqASTGenerator {
 
 function extractReusedAST(ast: UniqASTNode): UniqASTNode[] {
   const set = new Set<UniqASTNode>()
-  const reused = new Set<UniqASTNode>()
-  function extract(ast: UniqASTNode) {
+  const reused = new Set<UniqASTOpNode>()
+  function extractDups(ast: UniqASTNode) {
     if (typeof ast !== 'object') return
     if (set.has(ast)) {
       reused.add(ast)
       return
     }
     set.add(ast)
-    for (const arg of ast.args) extract(arg)
+    for (const arg of ast.args) extractDups(arg)
   }
-  extract(ast)
-  return [...reused]
+  extractDups(ast)
+  let astCnt = 0
+  const astId = new Map<UniqASTNode, number>()
+  function indexAst(ast: UniqASTNode) {
+    if (astId.has(ast) || typeof ast !== 'object') return
+    ast.args.forEach(indexAst)
+    astId.set(ast, astCnt++)
+  }
+  indexAst(ast)
+  return [...reused].sort((a, b) => astId.get(a)! - astId.get(b)!)
 }
 
 function toProcedure(ast: UniqASTNode) {
   const reuseds = extractReusedAST(ast)
-  const converts = new Map<UniqASTNode, string>(reuseds.map((ast, i) => [ast, `v${i}`]))
+  const converts = new Map<UniqASTNode, string>(reuseds.map((ast, i) => [ast, `_v${i}`]))
   const replaceds = new Map<UniqASTNode, ASTNode>()
   function replace(ast: UniqASTNode, root?: boolean): ASTNode {
     const ast2 = root ? null : replaceds.get(ast) ?? converts.get(ast)
@@ -251,6 +261,7 @@ export function astToRangeFunction(uniqAST: UniqASTNode) {
 
 
 const formulas = [
+  '((x+y)+z)^2+sin((x+y)+z)+cos(x+y)',
   'e=2.71828',
   'a=12+x+b',
   'sin(x+y+a*e)=(b*x+y+e^x)',
@@ -265,6 +276,7 @@ const formulas = [
   'S(a,b)=R(R(R(a,b),I(a,b)),I(R(a,b),I(a,b)))',
   'J(a,b)=I(R(R(a,b),I(a,b)),I(R(a,b),I(a,b)))',
   'S(S(x,y),J(x,y))**2+J(S(x,y),J(x,y))**2<4',
+  'x+y+S(3,5)+S(5,2)*(x+y)'
 ]
 
 console.log(parseMultiple(formulas))
