@@ -10,11 +10,12 @@ type FuncDef = { type: 'func'; name: string; deps: string[]; args: string[]; ast
 type Equation = { type: 'eq'; mode: CompareMode; deps: string[]; ast: UniqASTNode | null; error?: string }
 type Definition = VarDef | FuncDef
 type Formula = Definition | Equation
+
 export function parseMultiple(formulaTexts: string[], argNames: string[], presets?: Presets) {
   const uniq = new UniqASTGenerator()
   const predefinedVars = new Set(argNames)
   const varNames = new Set(predefinedVars)
-  const varDefRegexp = /^ *([a-zA-Z]) *(\( *[a-zA-Z](?: *, *[a-zA-Z])* *\))? *=(.*)/
+  const varDefRegexp = /^ *([a-zA-Zα-ωΑ-Ω]+) *(\( *[a-zA-Zα-ωΑ-Ω]+(?: *, *[a-zA-Zα-ωΑ-Ω]+)* *\))? *=(.*)/
   const funcNames = new Set(predefinedFunctionNames)
   if (presets){
     for (const name in presets) {
@@ -25,10 +26,17 @@ export function parseMultiple(formulaTexts: string[], argNames: string[], preset
       }
     }
   }
+  const maybeKeywords: string[] = []
+  for (const f of formulaTexts) {
+    const match = f.match(varDefRegexp)
+    if (match) maybeKeywords.push(match[1])
+  }
+  const keywordsSet = guessKeywords(maybeKeywords, [...varNames, ...funcNames])
   for (const f of formulaTexts) {
     const match = f.match(varDefRegexp)
     if (!match) continue
     const [_, name, args] = match
+    if (!keywordsSet.has(name)) continue
     if (args) funcNames.add(name)
     else varNames.add(name)
   }
@@ -79,7 +87,7 @@ export function parseMultiple(formulaTexts: string[], argNames: string[], preset
   const formulas: Formula[] = formulaTexts.map(f => {
     const match = f.match(varDefRegexp)
     const name = match?.[1]
-    if (!match || !name || vars.has(name) || funcs.has(name) || predefinedVars.has(name) || predefinedFunctionNames.has(name)) {
+    if (!match || !name || !keywordsSet.has(name) || vars.has(name) || funcs.has(name) || predefinedVars.has(name) || predefinedFunctionNames.has(name)) {
       try {
         const [ast, mode] = parse(f, varNames, funcNames)
         const deps = extractVariables(ast)
@@ -110,6 +118,43 @@ export function parseMultiple(formulaTexts: string[], argNames: string[], preset
       return { ...f, ast: null, error: String(e) }
     }
   })
+}
+
+function guessKeywords(maybeKeywords: string[], keywords: string[]) {
+  const keywordSet = new Set<string>()
+  const sizeSet = new Set<number>()
+  const sizes: number[] = []
+  function add(kw: string) {
+    keywordSet.add(kw)
+    if (!sizeSet.has(kw.length)) {
+      sizeSet.add(kw.length)
+      sizes.push(kw.length)
+      sizes.sort((a, b) => b - a)
+    }
+  }
+  function match(maybeKeyword: string) {
+    let idx = 0
+    let len = maybeKeyword.length
+    while (len > 0) {
+      let matched = 0
+      for (const s of sizes) {
+        if (s > len) continue
+        if (keywordSet.has(maybeKeyword.substr(idx, s))) {
+          matched = s
+          break
+        }
+      }
+      if (matched == 0) return false
+      idx += matched
+      len -= matched
+    }
+    return true
+  }
+  for (const kw of keywords) add(kw)
+  for (const kw of [...maybeKeywords].sort((a, b) => a.length - b.length)) {
+    if (!match(kw)) add(kw)
+  }
+  return keywordSet
 }
 
 function recursiveCheck(formulas: Formula[], defs: Map<string, Definition>) {
