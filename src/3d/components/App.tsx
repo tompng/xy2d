@@ -100,8 +100,7 @@ export const App: React.VFC = () => {
   const radiusString = camera.radius.toFixed(Math.max(-Math.round(Math.log10(camera.radius)) + 2, 0))
   useEffect(() => {
     const formatted = formulas.map(f => ({ text: f.text, color: f.renderingOption.color }))
-    const last = formatted[formatted.length - 1]
-    if (last && !last.color && !last.color) formatted.pop()
+    while (formatted.length > 0 && formatted[formatted.length - 1].text === '') formatted.pop()
     const path = location.pathname + `?r=${camera.radius}&f=${encodeURIComponent(JSON.stringify(formatted))}`
     replacePath(path)
   }, [formulas, camera.radius])
