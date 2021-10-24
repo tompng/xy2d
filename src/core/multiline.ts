@@ -3,7 +3,8 @@ import { ASTNode, UniqASTNode, UniqASTOpNode, extractVariables, extractFunctions
 import { expanders, Results, GAPMARK, NANMARK } from "./expander"
 import { createNameGenerator, MinMaxVarName, CompareMode, UniqASTGenerator } from './util'
 
-export type Presets = Record<string, string | number>
+type PresetFunc = [args: string[], body: string]
+export type Presets = Record<string, string | number | PresetFunc>
 type VarDef = { type: 'var'; name: string; deps: string[]; ast: UniqASTNode | null; error?: string }
 type FuncDef = { type: 'func'; name: string; deps: string[]; args: string[]; ast: UniqASTNode | null; error?: string }
 type Equation = { type: 'eq'; mode: CompareMode; deps: string[]; ast: UniqASTNode | null; error?: string }
@@ -16,7 +17,13 @@ export function parseMultiple(formulaTexts: string[], argNames: string[], preset
   const varDefRegexp = /^ *([a-zA-Z]) *(\( *[a-zA-Z](?: *, *[a-zA-Z])* *\))? *=(.*)/
   const funcNames = new Set(predefinedFunctionNames)
   if (presets){
-    for (const name in presets) varNames.add(name)
+    for (const name in presets) {
+      if (Array.isArray(presets[name])) {
+        funcNames.add(name)
+      } else {
+        varNames.add(name)
+      }
+    }
   }
   for (const f of formulaTexts) {
     const match = f.match(varDefRegexp)
@@ -27,15 +34,44 @@ export function parseMultiple(formulaTexts: string[], argNames: string[], preset
   }
   const vars = new Map<string, VarDef>()
   const funcs = new Map<string, FuncDef>()
+  function addVar(name: string, body: string | number) {
+    let definition: VarDef
+    if (typeof body === 'number') {
+      definition = { type: 'var', name, ast: body, deps: [] }
+    } else {
+      try {
+        const [ast, mode] = parse(body, varNames, funcNames)
+        const deps = extractVariables(ast)
+        definition = { type: 'var', name, deps, ast: uniq.convert(ast) }
+      } catch(e) {
+        definition = { type: 'var', name, deps: [], ast: null, error: String(e) }
+      }
+    }
+    vars.set(name, definition)
+    return definition
+  }
+  function addFunc(name: string, args: string[], body: string) {
+    let definition: FuncDef
+    try {
+      const [ast, mode] = parse(body, new Set([...varNames, ...args]), funcNames)
+      if (mode != null) throw `invalid compare operator`
+      const variables = extractVariables(ast).filter(n => !args.includes(n))
+      const deps = [...variables, ...extractFunctions(ast, funcNames)]
+      definition = { type: 'func', name, deps, args, ast: uniq.convert(ast) }
+    } catch (e) {
+      definition = { type: 'func', name, deps: [], args, ast: null, error: String(e) }
+    }
+    funcs.set(name, definition)
+    return definition
+  }
   if (presets){
     for (const name in presets) {
       const value = presets[name]
-      if (typeof value === 'number') {
-        vars.set(name, { type: 'var', name, ast: value, deps: [] })
+      if (Array.isArray(value)) {
+        const [args, body] = value
+        addFunc(name, args, body)
       } else {
-        const [ast] = parse(value, varNames, new Set())
-        const deps = extractVariables(ast)
-        vars.set(name, { type: 'var', name, deps, ast: uniq.convert(ast) })
+        addVar(name, value)
       }
     }
   }
@@ -56,29 +92,9 @@ export function parseMultiple(formulaTexts: string[], argNames: string[], preset
     const body = match[3]
     if (argpart) {
       const args = argpart.substring(1, argpart.length - 1).split(',').map(s => s.trim())
-      let definition: FuncDef
-      try {
-        const [ast, mode] = parse(body, new Set([...varNames, ...args]), funcNames)
-        if (mode != null) throw `invalid compare operator`
-        const variables = extractVariables(ast).filter(n => !args.includes(n))
-        const deps = [...variables, ...extractFunctions(ast, funcNames)]
-        definition = { type: 'func', name, deps, args, ast: uniq.convert(ast) }
-      } catch (e) {
-        definition = { type: 'func', name, deps: [], args, ast: null, error: String(e) }
-      }
-      funcs.set(name, definition)
-      return definition
+      return addFunc(name, args, body)
     } else {
-      let definition: VarDef
-      try {
-        const [ast] = parse(body, varNames, funcNames)
-        const deps = extractVariables(ast)
-        definition = { type: 'var', name, deps, ast: uniq.convert(ast) }
-      } catch(e) {
-        definition = { type: 'var', name, deps: [], ast: null, error: String(e) }
-      }
-      vars.set(name, definition)
-      return definition
+      return addVar(name, body)
     }
   })
   const defs = new Map<string, Definition>([...vars.entries(), ...funcs.entries()])
@@ -267,14 +283,21 @@ export function astToRangeFunctionCode(uniqAST: UniqASTNode, args: string[], opt
   return `${argsPart}=>{${preparePart}${markEmbeddedCode};${returnPart}}`
 }
 
+const presetConstants: Presets = { pi: Math.PI, e: Math.E }
+const presetFunctions: Presets = {
+  mod: [['x', 'y'], 'x-floor(x/y)*y']
+}
+
 export const presets2D: Presets = {
-  'pi': Math.PI,
-  'e': Math.E,
-  'r': 'hypot(x,y)',
-  'theta': 'atan2(y,x)'
+  ...presetConstants,
+  ...presetFunctions,
+  r: 'hypot(x,y)',
+  theta: 'atan2(y,x)'
 }
 export const presets3D: Presets = {
-  ...presets2D,
-  'r':'hypot(x,y,z)',
-  'phi':'atan2(hypot(x,y),z)',
+  ...presetConstants,
+  ...presetFunctions,
+  r: 'hypot(x,y,z)',
+  theta: 'atan2(y,x)',
+  phi: 'atan2(hypot(x,y),z)',
 }
