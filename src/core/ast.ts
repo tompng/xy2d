@@ -141,7 +141,6 @@ export function astToRangeVarNameCode(
 ): [MinMaxVarName | number, string] {
   const variables = extractVariables(ast)
   const validVars = new Set(Object.keys(args))
-  const codes: string[] = []
   for (const varname of variables) {
     if (!validVars.has(varname)) throw `Unknown variable ${varname}`
   }

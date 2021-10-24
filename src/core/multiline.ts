@@ -191,13 +191,13 @@ function expandAST(ast: UniqASTNode, vars: Map<string, VarDef>, funcs: Map<strin
     if (typeof ast === 'number') return ast
     if (typeof ast === 'string') {
       const vdef = vars.get(ast)
-      if (!vdef?.ast) return ast
+      if (vdef?.ast == null) return ast
       return expandAST(vdef.ast, vars, funcs, uniq)
     }
     const args = ast.args.map(arg => expandAST(arg, vars, funcs, uniq))
     const fdef = funcs.get(ast.op)
     let expanded: UniqASTNode
-    if (!fdef?.ast) {
+    if (fdef?.ast == null) {
       expanded = uniq.create(ast.op, args)
     } else {
       if (args.length !== fdef.args.length) throw `Wrong number of arguments for ${fdef.name}(${fdef.args.join(',')})`
