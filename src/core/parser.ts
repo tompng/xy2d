@@ -135,7 +135,7 @@ function buildFuncMultPow(group: TokenParenGroup, functionNames: Set<string>): A
       if (v.type === 'args') {
         if (!isPrevFunc) throw 'Function Required'
         const fcall = { op: prev, args: v.value } as ASTNode
-        if (pow) {
+        if (pow != null) {
           mults.unshift({ op: '^', args: [fcall, pow] })
           pow = undefined
         } else {
@@ -143,7 +143,7 @@ function buildFuncMultPow(group: TokenParenGroup, functionNames: Set<string>): A
         }
         index--
       } else {
-        if (pow && !isPrevFunc) {
+        if (pow != null && !isPrevFunc) {
           mults.unshift({ op: '^', args: [v.value, pow] })
           pow = undefined
         } else {
@@ -152,12 +152,12 @@ function buildFuncMultPow(group: TokenParenGroup, functionNames: Set<string>): A
       }
       concatable = false
     } else if (v === '^') {
-      if (!mults[0] || pow) throw `Error after ^`
+      if (mults[0] == null || pow != null) throw `Error after ^`
       pow = mults.shift()
       concatable = false
     } else if (typeof v === 'string' && functionNames.has(v)) {
-      if (!mults[0]) throw `Function Arg Required: ${v}`
-      if (pow) {
+      if (mults[0] == null) throw `Function Arg Required: ${v}`
+      if (pow != null) {
         mults[0] = { op: '^', args: [{ op: v, args: [mults[0]] }, pow] }
         pow = undefined
       } else {
@@ -165,7 +165,7 @@ function buildFuncMultPow(group: TokenParenGroup, functionNames: Set<string>): A
       }
       concatable = false
     } else {
-      if (pow) {
+      if (pow != null) {
         mults.unshift({ op: '^', args: [v, pow] })
         pow = undefined
       } else if (concatable) {
@@ -176,7 +176,7 @@ function buildFuncMultPow(group: TokenParenGroup, functionNames: Set<string>): A
       concatable = true
     }
   }
-  if (pow) throw 'Error at ^'
+  if (pow != null) throw 'Error at ^'
   if (mults.length === 0) throw `Unexpected Empty Block`
   return mults.reduce((a, b) => ({ op: '*', args: [a, b] }))
 }
