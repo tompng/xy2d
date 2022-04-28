@@ -63,6 +63,8 @@ export function parseMultiple(formulaTexts: string[], argNames: string[], preset
     try {
       const [ast, mode] = parse(body, new Set([...varNames, ...args]), funcNames)
       if (mode != null) throw `invalid compare operator`
+      const duplicateArgs = duplicates(args)
+      if (duplicateArgs.length !== 0) throw `duplicate argument name: ${JSON.stringify(duplicateArgs)}`
       const variables = extractVariables(ast).filter(n => !args.includes(n))
       const deps = [...variables, ...extractFunctions(ast, funcNames)]
       definition = { type: 'func', name, deps, args, ast: uniq.convert(ast) }
@@ -345,4 +347,14 @@ export const presets3D: Presets = {
   r: 'hypot(x,y,z)',
   theta: 'atan2(y,x)',
   phi: 'atan2(hypot(x,y),z)',
+}
+
+function duplicates<T>(elements: T[]): T[] {
+  const dups = new Set<T>()
+  const visited = new Set<T>()
+  for (const el of elements) {
+    if (visited.has(el)) dups.add(el)
+    visited.add(el)
+  }
+  return [...dups]
 }
