@@ -25,7 +25,6 @@ function initializeInput() {
   mfe.keypressSound = null
   mfe.value = initialValue
   mfe.virtualKeyboardMode = 'auto'
-  mfe.virtualKeyboards
   const errorDOM = document.querySelector<HTMLDivElement>('#error')!
   const update = () => {
     try {
