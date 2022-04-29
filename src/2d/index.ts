@@ -84,18 +84,23 @@ function calc(exp: string) {
     _view.fvalue = fvalue
     _view.frange = frange
     _view.colors = colors
+    _view.pixelRatio = devicePixelRatio
     _view.reset()
     _view.update(200)
     _view.renderAxis()
     return
   }
-  const view = _view = new View(fvalue, frange, colors)
+  const view = _view = new View(fvalue, frange, colors, devicePixelRatio)
   const setSize = () => {
     view.width = window.innerWidth - 40
     view.height = window.innerHeight - 140
   }
   setSize()
   window.onresize = () => {
+    if (devicePixelRatio !== view.pixelRatio) {
+      view.pixelRatio = devicePixelRatio
+      view.reset()
+    }
     setSize()
     if (!view.locked) view.update()
     else view.updatePosition()

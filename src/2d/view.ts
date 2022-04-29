@@ -113,7 +113,8 @@ export class View {
   constructor(
     public fvalue: ValueFunction,
     public frange: RangeFunction,
-    public colors: Colors
+    public colors: Colors,
+    public pixelRatio: number
   ) {
     this.dom.style.cssText = `
       position: absolute;
@@ -146,10 +147,10 @@ export class View {
     }
     this.dom.style.width = `${this.width}px`
     this.dom.style.height = `${this.height}px`
-    const { center, width, height, sizePerPixel, panelResolution } = this
+    const { center, width, height, sizePerPixel, panelResolution, pixelRatio } = this
     const viewResolution = Math.min(width, height)
     const viewSize = sizePerPixel * viewResolution
-    const panelSize = panelResolution / viewResolution * viewSize / devicePixelRatio
+    const panelSize = panelResolution / viewResolution * viewSize / pixelRatio
     this.renderedPanelSize = panelSize
     const xmin = center.x - viewSize * width / viewResolution / 2
     const xmax = center.x + viewSize * width / viewResolution / 2
@@ -263,9 +264,9 @@ export class View {
     this.panels.clear()
   }
   renderAxis() {
-    const { axisCanvas, width, height, center, sizePerPixel } = this
-    const canvasWidth = width * devicePixelRatio
-    const canvasHeight = height * devicePixelRatio
+    const { axisCanvas, width, height, center, sizePerPixel, pixelRatio } = this
+    const canvasWidth = width * pixelRatio
+    const canvasHeight = height * pixelRatio
     const viewResolution = Math.min(width, height)
     const viewSize = sizePerPixel * viewResolution
     if (axisCanvas.width !== canvasWidth || axisCanvas.height !== canvasHeight) {
