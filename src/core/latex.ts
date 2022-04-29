@@ -39,13 +39,13 @@ function parse1(s: string) {
       current = stack[stack.length - 1]
     } else if (c === '\\') {
       const cmd = takeCommand()
-      if (cmd === 'left') {
+      if (cmd === 'left' || cmd === 'mleft') {
         const k = chars[index++]
         const children: Block = []
         if (k === '|') current.push({ type: 'abs', children })
         else current.push({ type: 'paren', children })
         stack.push(current = children)
-      } else if (cmd === 'right') {
+      } else if (cmd === 'right' || cmd === 'mright') {
         index++
         stack.pop()
         current = stack[stack.length - 1]
