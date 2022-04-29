@@ -66,8 +66,8 @@ function calc(exp: string) {
     pos: mode !== '=',
     neg: mode === null
   }
-  const frange: RangeFunction2D = eval(astToRangeFunctionCode(parsed.ast, argNames, compareOption))
-  const fvalue: ValueFunction2D = eval(astToValueFunctionCode(parsed.ast, argNames))
+  const frange: RangeFunction2D = eval(astToRangeFunctionCode(ast, argNames, compareOption))
+  const fvalue: ValueFunction2D = eval(astToValueFunctionCode(ast, argNames))
 
   const colors =
     mode === '=' ? { zero: '#aaa', line: 'black' } :
