@@ -8,11 +8,12 @@
     "typescript": "*",
     "webpack": "*",
     "webpack-cli": "*",
-    "raw-loader": "*"
+    "raw-loader": "*",
+    "copy-webpack-plugin": "9"
   },
   "private": true,
   "dependencies": {
-    "mathquill": "*",
+    "mathlive": "*",
     "three": "*",
     "@types/three": "*",
     "react": "*",

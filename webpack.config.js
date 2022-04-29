@@ -1,3 +1,5 @@
+const CopyPlugin = require('copy-webpack-plugin')
+
 module.exports = {
   mode: 'development',
   entry: {
@@ -14,14 +16,15 @@ module.exports = {
       {
         test: /\.tsx?$/,
         use: 'ts-loader'
-      },
-      {
-        test: /\.css$/,
-        use: 'raw-loader'
-      },
+      }
     ]
   },
   resolve: {
     extensions: ['.ts', '.tsx', '.js']
-  }
+  },
+  plugins: [
+    new CopyPlugin({
+      patterns: [{ from: 'node_modules/mathlive/dist/fonts', to: 'fonts' }]
+    })
+  ]
 }
