@@ -1,19 +1,11 @@
 import { extractVariables } from '../core/ast'
 import { parse } from '../core/parser'
 import { View } from './view'
-import css from 'mathquill/build/mathquill.css'
+import { MathfieldElement } from 'mathlive'
 import { convertLatex } from '../core/latex'
 import { ValueFunction2D, RangeFunction2D } from '../core/util'
 import { parseMultiple, presets2D, astToRangeFunctionCode, astToValueFunctionCode } from '../core/multiline'
 
-const style = document.createElement('style')
-style.textContent = css
-document.head.appendChild(style)
-
-;(window as any).jQuery = require('jquery')
-require('mathquill/build/mathquill.js')
-const MQ = (window as any).MathQuill.getInterface(2)
-;(window as any).MQ = MQ
 const autoOperatorNames = (() => {
   const names = ['sqrt', 'exp', 'log', 'hypot', 'abs', 'min', 'max', 'pow', 'sgn', 'sign', 'signum', 'round', 'floor', 'ceil']
   for (const base of ['sin', 'cos', 'tan']) {
@@ -23,29 +15,31 @@ const autoOperatorNames = (() => {
   }
   return names.join(' ')
 })()
-setTimeout(() => {
-  const el = document.querySelector<HTMLDivElement>('#mqinput')!
-  const errorEl = document.querySelector<HTMLDivElement>('#error')!
-  el.style.color = 'black'
-  const mathField = MQ.MathField(el, {
-    handlers: {
-      edit: () => {
-        try {
-          errorEl.textContent = ''
-          calc(convertLatex(mathField.latex()))
-        } catch (e) {
-          errorEl.textContent = String(e)
-          console.error(e)
-        }
-      }
-    },
-    autoCommands: 'pi theta sqrt',
-    autoOperatorNames,
-    restrictMismatchedBrackets: true
-  })
-  ;(window as any).mathField = mathField
-  calc(convertLatex(mathField.latex()))
-})
+
+const initialValue = '\\max(\\left|x+2y\\right|,\\left|y-2x\\right|)<1+\\frac{\\sin(4\\theta)}{3}'
+
+function initializeInput() {
+  const wrapper = document.querySelector<HTMLDivElement>('#mathinput')!
+  const mfe = new MathfieldElement()
+  mfe.plonkSound = null
+  mfe.keypressSound = null
+  mfe.value = initialValue
+  mfe.virtualKeyboardMode = 'auto'
+  mfe.virtualKeyboards
+  const errorDOM = document.querySelector<HTMLDivElement>('#error')!
+  const update = () => {
+    try {
+      errorDOM.textContent = ''
+      calc(convertLatex(mfe.value))
+    } catch (e) {
+      errorDOM.textContent = String(e)
+    }
+  }
+  mfe.onchange = update
+  update()
+  wrapper.appendChild(mfe)
+}
+
 
 ;(window as any).parse = parse
 
@@ -202,6 +196,7 @@ function gesture(dom: HTMLElement, cb: (e: { dx: number; dy: number; zoom: { x: 
 }
 
 onload = () => {
+  initializeInput()
   const debugRenderEl = document.querySelector<HTMLInputElement>('#debugcheck')!
   debugRenderEl.onchange = () => {
     (window as any).debugRender = debugRenderEl.checked
