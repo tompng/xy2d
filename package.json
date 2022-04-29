@@ -12,7 +12,7 @@
   },
   "private": true,
   "dependencies": {
-    "mathquill": "*",
+    "mathlive": "*",
     "three": "*",
     "@types/three": "*",
     "react": "*",
