@@ -120,14 +120,17 @@ class PolygonizeWorker {
     }
   }
   run(fvalue: string, frange: string) {
-    const inputData: WorkerInput = { fvalue, frange, radius: this.radius }
+    const inputData: WorkerInput = { transparent: false, fvalue, frange, radius: this.radius }
     this.worker.postMessage(inputData)
     this.worker.addEventListener('message', (e: MessageEvent<WorkerOutput>) => {
       const { data } = e
-      if (data.complete) {
+      if (data.type === 'complete' || data.type === 'error') {
         this.state = { ...this.state, complete: true }
-        if (data.error) this.state.error = 'unknown error'
+        if (data.type === 'error') this.state.error = 'unknown error'
         this.onChange()
+        return
+      }
+      if (data.type === 'transparent') {
         return
       }
       const { positions, normals, resolution } = data
