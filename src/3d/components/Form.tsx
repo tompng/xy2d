@@ -12,11 +12,12 @@ import { arrayMove, SortableContext, verticalListSortingStrategy, useSortable } 
 import type { FormulaType, FormulaProgress, SetFormulasType } from './View'
 type MathListItemProps = {
   formula: FormulaType
+  warn?: string
   update: (formula: FormulaType) => void
   delete: (formula: FormulaType) => void
 }
 
-const MathListItem = React.memo<MathListItemProps>(({ formula, update }) => {
+const MathListItem = React.memo<MathListItemProps>(({ formula, warn, update }) => {
   const [text, setText] = useState(formula.text)
   const submit = () => update({ ...formula, text })
   const sortable = useSortable({ id: formula.id })
@@ -69,7 +70,7 @@ const MathListItem = React.memo<MathListItemProps>(({ formula, update }) => {
               onBlur={submit}
             />
           </form>
-          {text && formula.text === text && <FormulaStatus progress={formula.progress} />}
+          {text && formula.text === text && <FormulaStatus progress={formula.progress} warn={warn} />}
         </ListItemText>
       </ListItem>
       <ColorDialog
@@ -83,21 +84,28 @@ const MathListItem = React.memo<MathListItemProps>(({ formula, update }) => {
   )
 })
 
-const FormulaStatus = React.memo<{ progress?: FormulaProgress }>(({ progress }) => {
-  if (!progress) return null
-  const { name, complete, error, resolution, value } = progress
-  let message: string | null = null
-  if (resolution > 0) {
-    const res = resolution === 0 ? '' : [resolution, resolution, resolution].join('×')
-    message = res + (error || (complete ? '' : '...'))
-  } else if (error) {
-    message = error
-  } else if (value != null) {
-    message = `${name} = ${value}`
+const FormulaStatus = React.memo<{ progress?: FormulaProgress; warn?: string }>(({ progress, warn }) => {
+  let message: string | undefined
+  let color: string | undefined
+  if (progress) {
+    const { name, complete, error, resolution, value } = progress
+    if (error) color = 'red'
+    if (resolution > 0) {
+      const res = resolution === 0 ? '' : [resolution, resolution, resolution].join('×')
+      message = res + (error || (complete ? '' : '...'))
+    } else if (error) {
+      color = 'red'
+      message = error
+    } else if (value != null) {
+      message = `${name} = ${value}`
+    }
   }
-  return <div style={{ position: 'absolute', left: 0, bottom: 0, color: error ? 'red' : '', fontSize: '12px' }}>
-    {message}
-  </div>
+  return (
+    <div style={{ position: 'absolute', left: 0, bottom: 0, fontSize: '12px' }}>
+      <span style={{ color: color }}>{message}</span>
+      <span style={{ color: '#f40', paddingLeft: (message && warn) ? 8 : 0 }}>{warn}</span>
+    </div>
+  )
 })
 
 export function randomColor() {
@@ -120,6 +128,11 @@ type MathListProps = {
   formulas: FormulaType[]
   setFormulas: SetFormulasType
 }
+
+function isTransparentFormula(formula: FormulaType) {
+  return formula.progress?.type === 'eq' && formula.renderingOption.alpha !== 1
+}
+
 export const MathList = React.memo<MathListProps>(({ formulas, setFormulas }) => {
   const updateFormula = useCallback((formula: FormulaType) => {
     setFormulas(formulas => normalizeFormulas(formulas.map(f => (f.id === formula.id ? formula : f))))
@@ -127,8 +140,14 @@ export const MathList = React.memo<MathListProps>(({ formulas, setFormulas }) =>
   const deleteFormula = useCallback((formula: FormulaType) => {
     setFormulas(formulas => normalizeFormulas(formulas.filter(f => f.id !== formula.id)))
   }, [])
+  const hasMultipleTransparent = useMemo(() => {
+    let count = 0
+    for (const formula of formulas) {
+      if (isTransparentFormula(formula)) count ++
+    }
+    return count > 1
+  }, [formulas])
   const sensors = useSensors(useSensor(PointerSensor))
-
   const handleDragEnd = useCallback((event: DragEndEvent) => {
     const {active, over} = event
     if (!over) return
@@ -152,6 +171,7 @@ export const MathList = React.memo<MathListProps>(({ formulas, setFormulas }) =>
                 formula={formula}
                 update={updateFormula}
                 delete={deleteFormula}
+                warn={hasMultipleTransparent && isTransparentFormula(formula) ? 'cannot render multiple transparent surface' : undefined}
               />
             ))
           }
