@@ -19,20 +19,25 @@ void main() {
 `
 
 export type RenderingOption = {
-  color?: string
-  alpha?: number
+  color: string
+  alpha: number
 }
 
-export type DisposableDirGeometriesData = {
+type DisposableDirGeometriesData = {
   dirGeometries: { x: number; y: number; z: number; geometry: THREE.BufferGeometry }[]
   dispose: () => void
 }
+type DisposableGeometryData = {
+  geometry: THREE.BufferGeometry
+  dispose: () => void
+}
+export type DisposableCalculateData = DisposableDirGeometriesData | DisposableGeometryData
 export class SurfaceObject {
   uniforms = { color: { value: new THREE.Color('white') }, alpha: { value: 1 } }
   material: THREE.ShaderMaterial
   mesh = new THREE.Object3D()
-  dirMeshes: { x: number; y: number; z: number; mesh: THREE.Mesh }[]
-  constructor(public data: DisposableDirGeometriesData, public renderingOption: RenderingOption, public transparent: boolean) {
+  dirMeshes: { x: number; y: number; z: number; mesh: THREE.Mesh }[] | undefined
+  constructor(public data: DisposableCalculateData, public renderingOption: RenderingOption, public transparent: boolean) {
     this.update(renderingOption)
     const otherOption = transparent ? {
       // TODO: use `transparent: true` if gl_FrontFacing works
@@ -48,10 +53,17 @@ export class SurfaceObject {
       ...otherOption
     })
     this.material = material
-    this.dirMeshes = data.dirGeometries.map(({ x, y, z, geometry }) => ({ x, y, z, mesh: new THREE.Mesh(geometry, material) }))
+    if ('geometry' in data) {
+      this.mesh.add(new THREE.Mesh(data.geometry, material))
+    } else {
+      this.mesh.renderOrder = 1
+      this.dirMeshes = data.dirGeometries.map(({ x, y, z, geometry }) => ({ x, y, z, mesh: new THREE.Mesh(geometry, material) }))
+      for (const { mesh } of this.dirMeshes) mesh.renderOrder = 1
+    }
     this.switchMesh(0, 0, 0)
   }
   switchMesh(x: number, y: number, z: number) {
+    if (!this.dirMeshes) return
     let minDiff: number | undefined
     let mesh: THREE.Mesh | undefined
     for (const item of this.dirMeshes) {
@@ -68,8 +80,8 @@ export class SurfaceObject {
   }
   update(option: RenderingOption) {
     this.renderingOption = option
-    this.uniforms.color.value = new THREE.Color(option.color ?? 'white')
-    if (this.transparent) this.uniforms.alpha.value = option.alpha ?? 1
+    this.uniforms.color.value = new THREE.Color(option.color)
+    if (this.transparent) this.uniforms.alpha.value = option.alpha
   }
   dispose() {
     this.material.dispose()

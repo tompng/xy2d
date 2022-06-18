@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { View as WGLView, RenderingOption, SurfaceObject, DisposableDirGeometriesData } from '../view'
+import { View as WGLView, RenderingOption, SurfaceObject, DisposableCalculateData } from '../view'
 import type { WorkerInput, WorkerOutput } from '../worker'
 import * as THREE from 'three'
 import { randomColor } from './Form'
@@ -43,13 +43,13 @@ export const View = React.memo<ViewProps>(({ watcher, camera, onCameraChange, wi
           item = undefined
         }
         if (!data) continue
-        const option = watcher.renderingOptions.get(id) ?? {}
+        const option = watcher.renderingOptions.get(id) ?? { color : 'white', alpha: 1 }
         if (!item) {
           item = new SurfaceObject(data, option, true)
           view.scene.add(item.mesh)
           meshes.set(id, item)
         } else {
-          item.update({ ...option, alpha: 0.8 }) // TODO: delete overwriting alpha
+          item.update(option)
         }
       }
       for (const [id, item] of meshes.entries()) {
@@ -107,7 +107,14 @@ class PolygonizeWorker {
     resolution: 0,
     complete: false,
   }
-  constructor(public valueCode: string | null, public rangeCode: string | null, public radius: number, public onChange: () => void, transparent: boolean, public data: DisposableDirGeometriesData | null = null) {
+  constructor(
+    public valueCode: string | null,
+    public rangeCode: string | null,
+    public radius: number,
+    public onChange: () => void,
+    public transparent: boolean,
+    public data: DisposableCalculateData | null = null
+  ) {
     try {
       if (valueCode && rangeCode) {
         this.run(valueCode, rangeCode, transparent)
@@ -158,7 +165,7 @@ class PolygonizeWorker {
         const geometry = new THREE.BufferGeometry()
         geometry.setAttribute('position', positionAttribute)
         geometry.setAttribute('normal', normalAttribute)
-        this.data = { dirGeometries: [{ x: 0, y: 0, z: 0, geometry }], dispose: () => geometry.dispose() }
+        this.data = { geometry, dispose: () => geometry.dispose() }
       }
       this.state = { ...this.state, resolution }
       this.onChange()
@@ -172,7 +179,7 @@ class PolygonizeWorker {
 
 export type FormulaInputType = {
   text: string
-  renderingOption?: RenderingOption
+  renderingOption: RenderingOption
 }
 
 export type FormulaType = {
@@ -189,11 +196,11 @@ type WorkerWatcher = {
 
 function initialFormulas(originalInputs: FormulaInputType[]): FormulaType[] {
   const inputs = [...originalInputs]
-  if (inputs.length === 0 || inputs[inputs.length - 1].text !== '') inputs.push({ text: '', renderingOption: { color: randomColor() } })
+  if (inputs.length === 0 || inputs[inputs.length - 1].text !== '') inputs.push({ text: '', renderingOption: { color: randomColor(), alpha: 1 } })
   return inputs.map(({ text, renderingOption }) => ({
     id: String(Math.random()),
     text,
-    renderingOption: renderingOption ?? {}
+    renderingOption
   }))
 }
 export type SetFormulasType = (value: FormulaType[] | ((formulas: FormulaType[]) => FormulaType[])) => void
@@ -213,8 +220,9 @@ export function useFormulas(
     }
     let changed = false
     for (let i = 0; i < formulas.length; i++) {
-      const { id } = formulas[i]
+      const { id, renderingOption } = formulas[i]
       const parsed = parsedFormulas[i]
+      const transparent = renderingOption.alpha != null && renderingOption.alpha !== 1
       let w = workers.get(id)
       let valueCode: string | null = null
       let rangeCode: string | null = null
@@ -227,11 +235,10 @@ export function useFormulas(
           parsed.error = String(e)
         }
       }
-      if (!w || w.valueCode !== valueCode || w.rangeCode !== rangeCode || w.radius !== radius) {
+      if (!w || w.valueCode !== valueCode || w.rangeCode !== rangeCode || w.radius !== radius || w.transparent !== transparent) {
         changed = true
         const prevData = w?.data
         w?.terminate()
-        const transparent = true
         w = new PolygonizeWorker(valueCode, rangeCode, radius, update, transparent, prevData)
         workers.set(id, w)
       }
