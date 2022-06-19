@@ -1,7 +1,8 @@
 import React, { useState, useRef, useCallback, useMemo } from 'react'
 import {
-  List, ListItem, ListItemText, ListItemAvatar, Avatar,
-  Slider, Input, TextField,
+  List, ListItem, ListItemText,
+  FormGroup, FormControlLabel,
+  Slider, Input, TextField, Checkbox,
   Dialog, DialogTitle, DialogContent,
   IconButton, Grid
 } from '@mui/material'
@@ -225,8 +226,12 @@ const ColorPicker = React.memo<{ color: string; alpha: number; onChange: (color:
     <ColorSlider SliderComponent={RedSlider} value={r} onChange={r => update(r, g, b)} />
     <ColorSlider SliderComponent={GreenSlider} value={g} onChange={g => update(r, g, b)} />
     <ColorSlider SliderComponent={BlueSlider} value={b} onChange={b => update(r, g, b)} />
-    opacity
-    <ColorSlider SliderComponent={AlphaSlider} value={Math.round(alpha * 100)} step={100} onChange={a => onChange(color, a / 100)} />
+    <FormGroup>
+      <FormControlLabel control={
+        <Checkbox checked={alpha !== 1} onChange={e => onChange(color, e.target.checked ? 0.99 : 1)}/>
+      } label="transparent (low resolution)" />
+    </FormGroup>
+    <ColorSlider SliderComponent={AlphaSlider} disabled={alpha === 1} value={Math.round(alpha * 100)} step={alpha === 1 ? 100 : 99} onChange={a => onChange(color, a / 100)} />
   </>)
 })
 
@@ -244,8 +249,8 @@ const GreenSlider = createColoredSlider('#4f4')
 const BlueSlider = createColoredSlider('#44f')
 const AlphaSlider = createColoredSlider('#888')
 type SliderComponentType = ReturnType<typeof createColoredSlider>
-type ColorSliderProps = { SliderComponent: SliderComponentType; value: number; step?: number; onChange: (value: number) => void }
-const ColorSlider = React.memo<ColorSliderProps>(({ SliderComponent, value, step, onChange }) => {
+type ColorSliderProps = { SliderComponent: SliderComponentType; value: number; step?: number; onChange: (value: number) => void; disabled?: boolean }
+const ColorSlider = React.memo<ColorSliderProps>(({ SliderComponent, value, step, disabled, onChange }) => {
   const max = step ?? 255
   const handleChange = (value: number) => {
     if (0 <= value && value <= max) onChange(value)
@@ -255,6 +260,7 @@ const ColorSlider = React.memo<ColorSliderProps>(({ SliderComponent, value, step
       <Grid item xs={8}>
         <SliderComponent
           value={value}
+          disabled={disabled}
           min={0} max={max}
           onChange={(_e, v) => handleChange(v as number)}
         />
@@ -262,6 +268,7 @@ const ColorSlider = React.memo<ColorSliderProps>(({ SliderComponent, value, step
       <Grid item xs={4}>
         <Input
           value={value}
+          disabled={disabled}
           fullWidth
           onChange={e => handleChange(parseInt(e.target.value))}
           inputProps={{ step: 15, min: 0, max, type: 'number' }}
