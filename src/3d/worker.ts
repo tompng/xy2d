@@ -122,7 +122,6 @@ function start(input: WorkerInput, sendOutput: (output: WorkerOutput) => void) {
   const { radius } = input
   let ranges: Range3D[] = [[-radius, radius, -radius, radius, -radius, radius]]
   let res = 1
-  let numPolygons = 1
   const preferredRanges = 65536
   const maxPolygons = input.transparent ? 200000 : 800000
   const maxResolution = 1024
@@ -135,32 +134,33 @@ function start(input: WorkerInput, sendOutput: (output: WorkerOutput) => void) {
       sendOutput({ type: 'opaque', positions, normals, resolution })
     }
   }
+  let numPolygonsWithoutEdge = 1
   while (true) {
     ranges = splitRanges(frange, ranges)
     res *= 2
-    const positions = new Float32Array(polygonize(fvalue, ranges, 4, { ...area, resolution: res }, polygonizeEdge))
-    const normals = generateNormals(positions)
-    send(positions, normals, res * 4)
-    numPolygons = positions.length / 9
+    const result = polygonize(fvalue, ranges, 4, { ...area, resolution: res }, polygonizeEdge)
+    numPolygonsWithoutEdge = result[0]
+    const positions = new Float32Array(result[1])
+    const numPolygons = positions.length / 9
+    send(positions, generateNormals(positions), res * 4)
     if (res * 4 >= maxResolution) return
-    if (numPolygons * 4 > maxPolygons || ranges.length > preferredRanges) break
+    if (numPolygons > maxPolygons * 1.5) return
+    if (numPolygonsWithoutEdge * 4 > maxPolygons || ranges.length > preferredRanges) break
   }
-  if (input.transparent) return
   let N: number
-  if (ranges.length < preferredRanges && numPolygons * (3 / 2) ** 2 < maxPolygons) {
+  if (ranges.length < preferredRanges && numPolygonsWithoutEdge * (3 / 2) ** 2 < maxPolygons) {
     ranges = splitRanges(frange, ranges)
     res *= 2
     N = 3
-  } else if (numPolygons * (5 / 4) ** 2 < maxPolygons) {
+  } else if (numPolygonsWithoutEdge * (5 / 4) ** 2 < maxPolygons) {
     N = 5
   } else {
     return
   }
-  const positions = new Float32Array(polygonize(fvalue, ranges, N, { ...area, resolution: res }, polygonizeEdge))
-  numPolygons = positions.length / 9
+  const positions = new Float32Array(polygonize(fvalue, ranges, N, { ...area, resolution: res }, polygonizeEdge)[1])
+  const numPolygons = positions.length / 9
   if (numPolygons > maxPolygons * 1.5) return
-  const normals = generateNormals(positions)
-  send(positions, normals, res * N)
+  send(positions, generateNormals(positions), res * N)
 }
 
 function generateNormals(positions: Float32Array) {
