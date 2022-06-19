@@ -19,16 +19,17 @@ type WorkerComplete = {
 type WorkerError = {
   type: 'error'
 }
-type Pair<T> = [T, T]
 type WorkerTransparentResult = {
   type: 'transparent'
   positions: Float32Array
   normals: Float32Array
-  dirIndices: {
+  indices: Uint32Array
+  dirRanges: {
     x: number
     y: number
     z: number
-    indices: Uint32Array
+    start: number
+    count: number
   }[]
   resolution: number
 }
@@ -71,12 +72,15 @@ function toTransparentOutput(positions: Float32Array, normals: Float32Array, res
     triangleIndices.push(i)
     centers.push(item)
   }
+  let indicesIndex = 0
+  const indices = new Uint32Array(numTriangles * 3 * 26)
   const data: WorkerTransparentResult = {
     type: 'transparent',
     positions,
     normals,
     resolution,
-    dirIndices: []
+    indices,
+    dirRanges: []
   }
   for (const dx of [-1, 0, 1]) {
     for (const dy of [-1, 0, 1]) {
@@ -89,21 +93,22 @@ function toTransparentOutput(positions: Float32Array, normals: Float32Array, res
           const idx = offset + ix * dx + iy * dy + iz * dz
           indicesList[idx].push(i)
         }
-        let i = 0
-        const indices = new Uint32Array(numTriangles * 3)
+        const start = indicesIndex
         for (const idxs of indicesList) {
           for (const idx of idxs) {
-            indices[i++] = 3 * idx
-            indices[i++] = 3 * idx + 1
-            indices[i++] = 3 * idx + 2
+            indices[indicesIndex] = 3 * idx
+            indices[indicesIndex + 1] = 3 * idx + 1
+            indices[indicesIndex + 2] = 3 * idx + 2
+            indicesIndex += 3
           }
         }
         const dr = Math.hypot(dx ** 2 + dy ** 2 + dz ** 2)
-        data.dirIndices.push({
+        data.dirRanges.push({
           x: dx / dr,
           y: dy / dr,
           z: dz / dr,
-          indices
+          start,
+          count: numTriangles * 3
         })
       }
     }

@@ -23,21 +23,16 @@ export type RenderingOption = {
   alpha: number
 }
 
-type DisposableDirGeometriesData = {
-  dirGeometries: { x: number; y: number; z: number; geometry: THREE.BufferGeometry }[]
-  dispose: () => void
-}
-type DisposableGeometryData = {
+export type DisposableGeometryData = {
   geometry: THREE.BufferGeometry
+  dirRanges?: { x: number; y: number; z: number; start: number; count: number }[]
   dispose: () => void
 }
-export type DisposableCalculateData = DisposableDirGeometriesData | DisposableGeometryData
 export class SurfaceObject {
   uniforms = { color: { value: new THREE.Color('white') }, alpha: { value: 1 } }
   material: THREE.ShaderMaterial
-  mesh = new THREE.Object3D()
-  dirMeshes: { x: number; y: number; z: number; mesh: THREE.Mesh }[] | undefined
-  constructor(public data: DisposableCalculateData, public renderingOption: RenderingOption, public transparent: boolean) {
+  mesh: THREE.Mesh
+  constructor(public data: DisposableGeometryData, public renderingOption: RenderingOption, public transparent: boolean) {
     this.update(renderingOption)
     const otherOption = transparent ? {
       // TODO: use `transparent: true` if gl_FrontFacing works
@@ -53,30 +48,24 @@ export class SurfaceObject {
       ...otherOption
     })
     this.material = material
-    if ('geometry' in data) {
-      this.mesh.add(new THREE.Mesh(data.geometry, material))
-    } else {
-      this.mesh.renderOrder = 1
-      this.dirMeshes = data.dirGeometries.map(({ x, y, z, geometry }) => ({ x, y, z, mesh: new THREE.Mesh(geometry, material) }))
-      for (const { mesh } of this.dirMeshes) mesh.renderOrder = 1
-    }
+    this.mesh = new THREE.Mesh(data.geometry, material)
+    if (data.dirRanges) this.mesh.renderOrder = 1
     this.switchMesh(0, 0, 0)
   }
   switchMesh(x: number, y: number, z: number) {
-    if (!this.dirMeshes) return
+    const { dirRanges } = this.data
+    if (!dirRanges) return
     let minDiff: number | undefined
-    let mesh: THREE.Mesh | undefined
-    for (const item of this.dirMeshes) {
+    let minItem: (typeof dirRanges[0]) | undefined
+    for (const item of dirRanges) {
       const diff = (item.x - x) ** 2 + (item.y - y) ** 2 + (item.z - z) ** 2
       if (minDiff == null || diff < minDiff) {
         minDiff = diff
-        mesh = item.mesh
+        minItem = item
       }
     }
-    if (this.mesh.children.length === 0 || this.mesh.children[0] !== mesh) {
-      this.mesh.clear()
-      if (mesh) this.mesh.add(mesh)
-    }
+    if (!minItem) return
+    this.data.geometry.setDrawRange(minItem.start, minItem.count)
   }
   update(option: RenderingOption) {
     this.renderingOption = option
@@ -257,6 +246,7 @@ function boundingCubeLineSegments() {
   }
   const geometry = new THREE.BufferGeometry()
   geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3))
+  geometry.attributes.position
   return new THREE.LineSegments(
     geometry,
     new THREE.LineBasicMaterial({ color: 'gray' })

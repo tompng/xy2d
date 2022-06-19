@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { View as WGLView, RenderingOption, SurfaceObject, DisposableCalculateData } from '../view'
+import { View as WGLView, RenderingOption, SurfaceObject, DisposableGeometryData } from '../view'
 import type { WorkerInput, WorkerOutput } from '../worker'
 import * as THREE from 'three'
 import { randomColor } from './Form'
@@ -113,7 +113,7 @@ class PolygonizeWorker {
     public radius: number,
     public onChange: () => void,
     public transparent: boolean,
-    public data: DisposableCalculateData | null = null
+    public data: DisposableGeometryData | null = null
   ) {
     try {
       if (valueCode && rangeCode) {
@@ -151,16 +151,13 @@ class PolygonizeWorker {
       const normalAttribute = new THREE.BufferAttribute(normals, 3)
       this.data?.dispose()
       if (data.type === 'transparent') {
-        const { dirIndices } = data
-        const dirGeometries = dirIndices.map(({ x, y, z, indices }) => {
-          const geometry = new THREE.BufferGeometry()
-          geometry.setAttribute('position', positionAttribute)
-          geometry.setAttribute('normal', normalAttribute)
-          geometry.setIndex(new THREE.BufferAttribute(indices, 1))
-          return { x, y, z, geometry }
-        })
-        const dispose = () => dirGeometries.map(({ geometry }) => geometry.dispose)
-        this.data = { dirGeometries, dispose }
+        const { dirRanges } = data
+        const geometry = new THREE.BufferGeometry()
+        geometry.setAttribute('position', positionAttribute)
+        geometry.setAttribute('normal', normalAttribute)
+        geometry.setIndex(new THREE.BufferAttribute(data.indices, 1))
+        geometry.setDrawRange(dirRanges[0].start, dirRanges[0].count)
+        this.data = { geometry, dirRanges, dispose: () => geometry.dispose() }
       } else {
         const geometry = new THREE.BufferGeometry()
         geometry.setAttribute('position', positionAttribute)
