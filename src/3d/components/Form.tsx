@@ -46,7 +46,7 @@ const MathListItem = React.memo<MathListItemProps>(({ formula, warn, update }) =
         >
           <ClickableInsideDND onClick={() => setDialogOpen(true)}>
             <div style={{
-              backgroundColor: (!isDef && formula.renderingOption.color) || '#ffffff',
+              backgroundColor: isDef ? 'white' : formula.renderingOption.color,
               position: 'absolute',
               left: 16,
               top: 16,

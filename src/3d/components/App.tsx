@@ -50,7 +50,7 @@ function getInitialFormula() {
         if (Array.isArray(res)) {
           formulas = res.map(f => {
             const text = ('text' in f && typeof f.text === 'string') ? f.text : ''
-            const color = ('color' in f && typeof f.color === 'string') ? f.color : 'white'
+            const color = ('color' in f && typeof f.color === 'string') ? f.color : '#ffffff'
             const alpha = ('alpha' in f && typeof f.alpha === 'number') ? f.alpha / 100 : 1
             return { text, renderingOption: { color, alpha } }
           })
