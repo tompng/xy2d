@@ -32,9 +32,11 @@ export class SurfaceObject {
   uniforms = { color: { value: new THREE.Color('white') }, alpha: { value: 1 } }
   material: THREE.ShaderMaterial
   mesh: THREE.Mesh
-  constructor(public data: DisposableGeometryData, public renderingOption: RenderingOption, public transparent: boolean) {
+  transparent: boolean
+  constructor(public data: DisposableGeometryData, public renderingOption: RenderingOption) {
     this.update(renderingOption)
-    const otherOption = transparent ? {
+    this.transparent = !!data.dirRanges
+    const otherOption = this.transparent ? {
       // TODO: use `transparent: true` if gl_FrontFacing works
       blending: THREE.CustomBlending,
       blendSrc: THREE.SrcAlphaFactor,
@@ -49,8 +51,7 @@ export class SurfaceObject {
     })
     this.material = material
     this.mesh = new THREE.Mesh(data.geometry, material)
-    if (data.dirRanges) this.mesh.renderOrder = 1
-    this.switchMesh(0, 0, 0)
+    if (this.transparent) this.mesh.renderOrder = 1
   }
   switchMesh(x: number, y: number, z: number) {
     const { dirRanges } = this.data
@@ -246,7 +247,6 @@ function boundingCubeLineSegments() {
   }
   const geometry = new THREE.BufferGeometry()
   geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3))
-  geometry.attributes.position
   return new THREE.LineSegments(
     geometry,
     new THREE.LineBasicMaterial({ color: 'gray' })

@@ -45,7 +45,7 @@ export const View = React.memo<ViewProps>(({ watcher, camera, onCameraChange, wi
         if (!data) continue
         const option = watcher.renderingOptions.get(id) ?? { color : 'white', alpha: 1 }
         if (!item) {
-          item = new SurfaceObject(data, option, true)
+          item = new SurfaceObject(data, option)
           view.scene.add(item.mesh)
           meshes.set(id, item)
         } else {
@@ -147,22 +147,18 @@ class PolygonizeWorker {
       }
       const { positions, normals, resolution } = data
       console.log(resolution, positions.length / 9)
-      const positionAttribute = new THREE.BufferAttribute(positions, 3)
-      const normalAttribute = new THREE.BufferAttribute(normals, 3)
+      const geometry = new THREE.BufferGeometry()
+      geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3))
+      geometry.setAttribute('normal', new THREE.BufferAttribute(normals, 3))
+      const dispose = () => geometry.dispose()
       this.data?.dispose()
       if (data.type === 'transparent') {
         const { dirRanges } = data
-        const geometry = new THREE.BufferGeometry()
-        geometry.setAttribute('position', positionAttribute)
-        geometry.setAttribute('normal', normalAttribute)
         geometry.setIndex(new THREE.BufferAttribute(data.indices, 1))
         geometry.setDrawRange(dirRanges[0].start, dirRanges[0].count)
-        this.data = { geometry, dirRanges, dispose: () => geometry.dispose() }
+        this.data = { geometry, dirRanges, dispose }
       } else {
-        const geometry = new THREE.BufferGeometry()
-        geometry.setAttribute('position', positionAttribute)
-        geometry.setAttribute('normal', normalAttribute)
-        this.data = { geometry, dispose: () => geometry.dispose() }
+        this.data = { geometry, dispose }
       }
       this.state = { ...this.state, resolution }
       this.onChange()
@@ -219,7 +215,7 @@ export function useFormulas(
     for (let i = 0; i < formulas.length; i++) {
       const { id, renderingOption } = formulas[i]
       const parsed = parsedFormulas[i]
-      const transparent = renderingOption.alpha != null && renderingOption.alpha !== 1
+      const transparent = renderingOption.alpha !== 1
       let w = workers.get(id)
       let valueCode: string | null = null
       let rangeCode: string | null = null
