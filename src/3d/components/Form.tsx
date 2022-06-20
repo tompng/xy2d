@@ -1,7 +1,8 @@
-import React, { useState, useRef, useCallback } from 'react'
+import React, { useState, useRef, useCallback, useMemo } from 'react'
 import {
-  List, ListItem, ListItemText, ListItemAvatar, Avatar,
-  Slider, Input, TextField,
+  List, ListItem, ListItemText,
+  FormGroup, FormControlLabel,
+  Slider, Input, TextField, Checkbox,
   Dialog, DialogTitle, DialogContent,
   IconButton, Grid
 } from '@mui/material'
@@ -12,11 +13,12 @@ import { arrayMove, SortableContext, verticalListSortingStrategy, useSortable } 
 import type { FormulaType, FormulaProgress, SetFormulasType } from './View'
 type MathListItemProps = {
   formula: FormulaType
+  warn?: string
   update: (formula: FormulaType) => void
   delete: (formula: FormulaType) => void
 }
 
-const MathListItem = React.memo<MathListItemProps>(({ formula, update }) => {
+const MathListItem = React.memo<MathListItemProps>(({ formula, warn, update }) => {
   const [text, setText] = useState(formula.text)
   const submit = () => update({ ...formula, text })
   const sortable = useSortable({ id: formula.id })
@@ -44,7 +46,7 @@ const MathListItem = React.memo<MathListItemProps>(({ formula, update }) => {
         >
           <ClickableInsideDND onClick={() => setDialogOpen(true)}>
             <div style={{
-              backgroundColor: (!isDef && formula.renderingOption.color) || 'white',
+              backgroundColor: isDef ? 'white' : formula.renderingOption.color,
               position: 'absolute',
               left: 16,
               top: 16,
@@ -69,34 +71,42 @@ const MathListItem = React.memo<MathListItemProps>(({ formula, update }) => {
               onBlur={submit}
             />
           </form>
-          {text && formula.text === text && <FormulaStatus progress={formula.progress} />}
+          {text && formula.text === text && <FormulaStatus progress={formula.progress} warn={warn} />}
         </ListItemText>
       </ListItem>
       <ColorDialog
         open={dialogOpen}
         onClose={() => setDialogOpen(false)}
-        color={formula.renderingOption.color ?? '#ffffff'}
-        onChange={color => update({ ...formula, renderingOption: { ...formula.renderingOption, color } })}
+        color={formula.renderingOption.color}
+        alpha={formula.renderingOption.alpha}
+        onChange={(color, alpha) => update({ ...formula, renderingOption: { ...formula.renderingOption, color, alpha } })}
       />
     </div>
   )
 })
 
-const FormulaStatus = React.memo<{ progress?: FormulaProgress }>(({ progress }) => {
-  if (!progress) return null
-  const { name, complete, error, resolution, value } = progress
-  let message: string | null = null
-  if (resolution > 0) {
-    const res = resolution === 0 ? '' : [resolution, resolution, resolution].join('×')
-    message = res + (error || (complete ? '' : '...'))
-  } else if (error) {
-    message = error
-  } else if (value != null) {
-    message = `${name} = ${value}`
+const FormulaStatus = React.memo<{ progress?: FormulaProgress; warn?: string }>(({ progress, warn }) => {
+  let message: string | undefined
+  let color: string | undefined
+  if (progress) {
+    const { name, complete, error, resolution, value } = progress
+    if (error) color = 'red'
+    if (resolution > 0) {
+      const res = resolution === 0 ? '' : [resolution, resolution, resolution].join('×')
+      message = res + (error || (complete ? '' : '...'))
+    } else if (error) {
+      color = 'red'
+      message = error
+    } else if (value != null) {
+      message = `${name} = ${value}`
+    }
   }
-  return <div style={{ position: 'absolute', left: 0, bottom: 0, color: error ? 'red' : '', fontSize: '12px' }}>
-    {message}
-  </div>
+  return (
+    <div style={{ position: 'absolute', left: 0, bottom: 0, fontSize: '12px' }}>
+      <span style={{ color: color }}>{message}</span>
+      <span style={{ color: '#f40', paddingLeft: (message && warn) ? 8 : 0 }}>{warn}</span>
+    </div>
+  )
 })
 
 export function randomColor() {
@@ -106,7 +116,7 @@ export function randomColor() {
 }
 
 export function newFormula(text = ''): FormulaType {
-  return { id: String(Math.random()), text, renderingOption: { color: randomColor() } }
+  return { id: String(Math.random()), text, renderingOption: { color: randomColor(), alpha: 1 } }
 }
 function normalizeFormulas(formulas: FormulaType[]) {
   const normalized = [...formulas]
@@ -119,6 +129,11 @@ type MathListProps = {
   formulas: FormulaType[]
   setFormulas: SetFormulasType
 }
+
+function isTransparentFormula(formula: FormulaType) {
+  return formula.progress?.type === 'eq' && formula.renderingOption.alpha !== 1
+}
+
 export const MathList = React.memo<MathListProps>(({ formulas, setFormulas }) => {
   const updateFormula = useCallback((formula: FormulaType) => {
     setFormulas(formulas => normalizeFormulas(formulas.map(f => (f.id === formula.id ? formula : f))))
@@ -126,9 +141,14 @@ export const MathList = React.memo<MathListProps>(({ formulas, setFormulas }) =>
   const deleteFormula = useCallback((formula: FormulaType) => {
     setFormulas(formulas => normalizeFormulas(formulas.filter(f => f.id !== formula.id)))
   }, [])
-
+  const hasMultipleTransparent = useMemo(() => {
+    let count = 0
+    for (const formula of formulas) {
+      if (isTransparentFormula(formula)) count ++
+    }
+    return count > 1
+  }, [formulas])
   const sensors = useSensors(useSensor(PointerSensor))
-
   const handleDragEnd = useCallback((event: DragEndEvent) => {
     const {active, over} = event
     if (!over) return
@@ -152,6 +172,7 @@ export const MathList = React.memo<MathListProps>(({ formulas, setFormulas }) =>
                 formula={formula}
                 update={updateFormula}
                 delete={deleteFormula}
+                warn={hasMultipleTransparent && isTransparentFormula(formula) ? 'cannot render multiple transparent surface' : undefined}
               />
             ))
           }
@@ -175,8 +196,8 @@ const ClickableInsideDND = React.memo<{ onClick?: () => void; children?: React.R
   return <div onPointerDown={onPointerDown} onPointerUp={onPointerUp} style={{ cursor: 'pointer' }}>{children}</div>
 })
 
-const ColorDialog = React.memo<{ open: boolean; onClose: () => void; color: string; onChange: (color: string) => void }>(({
-  open, onClose, color, onChange
+const ColorDialog = React.memo<{ open: boolean; onClose: () => void; color: string; alpha: number; onChange: (color: string, alpha: number) => void }>(({
+  open, onClose, color, alpha, onChange
 }) => {
   return (
     <Dialog open={open} onClose={onClose}>
@@ -187,24 +208,30 @@ const ColorDialog = React.memo<{ open: boolean; onClose: () => void; color: stri
         </IconButton>
       </DialogTitle>
       <DialogContent>
-        <ColorPicker color={color} onChange={onChange} />
+        <ColorPicker color={color} alpha={alpha} onChange={onChange} />
       </DialogContent>
     </Dialog>
   )
 })
 
-const ColorPicker = React.memo<{ color: string; onChange: (color: string) => void }>(({ color, onChange }) => {
-  const [r, g, b] = [0, 1, 2].map(i => parseInt(color.substr(2 * i + 1, 2), 16))
+const ColorPicker = React.memo<{ color: string; alpha: number; onChange: (color: string, alpha: number) => void }>(({ color, alpha, onChange }) => {
+  const [r, g, b] = [0, 1, 2].map(i => parseInt(color.substring(2 * i + 1, 2 * i + 3), 16))
   const update = (r: number, g: number, b: number) => {
     onChange('#' + [r, g, b].map(c => {
       const c2 = c < 0 ? 0 : c > 255 ? 255 : Math.round(c)
       return Math.floor(c2 / 16).toString(16) + (c2 % 16).toString(16)
-    }).join(''))
+    }).join(''), alpha)
   }
   return (<>
-    <ColorSlider SliderComponent={RedSlider} value={r} onChange={r => update(r, g, b)} />
-    <ColorSlider SliderComponent={GreenSlider} value={g} onChange={g => update(r, g, b)} />
-    <ColorSlider SliderComponent={BlueSlider} value={b} onChange={b => update(r, g, b)} />
+    <ColorSlider SliderComponent={RedSlider} value={r} step={15} max={255} onChange={r => update(r, g, b)} />
+    <ColorSlider SliderComponent={GreenSlider} value={g} step={15} max={255} onChange={g => update(r, g, b)} />
+    <ColorSlider SliderComponent={BlueSlider} value={b} step={15} max={255} onChange={b => update(r, g, b)} />
+    <FormGroup>
+      <FormControlLabel control={
+        <Checkbox checked={alpha !== 1} onChange={e => onChange(color, e.target.checked ? 0.99 : 1)}/>
+      } label="transparent (low resolution)" />
+    </FormGroup>
+    <ColorSlider SliderComponent={AlphaSlider} disabled={alpha === 1} value={Math.round(alpha * 100)} step={10} max={alpha === 1 ? 100 : 99} onChange={a => onChange(color, a / 100)} />
   </>)
 })
 
@@ -220,27 +247,30 @@ function createColoredSlider(color: string) {
 const RedSlider = createColoredSlider('#f44')
 const GreenSlider = createColoredSlider('#4f4')
 const BlueSlider = createColoredSlider('#44f')
+const AlphaSlider = createColoredSlider('#888')
 type SliderComponentType = ReturnType<typeof createColoredSlider>
-type ColorSliderProps = { SliderComponent: SliderComponentType; value: number; onChange: (value: number) => void }
-const ColorSlider = React.memo<ColorSliderProps>(({ SliderComponent, value, onChange }) => {
+type ColorSliderProps = { SliderComponent: SliderComponentType; value: number; step?: number; max: number; onChange: (value: number) => void; disabled?: boolean }
+const ColorSlider = React.memo<ColorSliderProps>(({ SliderComponent, value, step, max, disabled, onChange }) => {
   const handleChange = (value: number) => {
-    if (0 <= value && value <= 255) onChange(value)
+    if (0 <= value && value <= max) onChange(value)
   }
   return (
     <Grid container spacing={2} alignItems="center" sx={{ width: 250 }}>
       <Grid item xs={8}>
         <SliderComponent
           value={value}
-          min={0} max={255}
+          disabled={disabled}
+          min={0} max={max}
           onChange={(_e, v) => handleChange(v as number)}
         />
       </Grid>
       <Grid item xs={4}>
         <Input
           value={value}
+          disabled={disabled}
           fullWidth
           onChange={e => handleChange(parseInt(e.target.value))}
-          inputProps={{ step: 15, min: 0, max: 255, type: 'number' }}
+          inputProps={{ step, min: 0, max, type: 'number' }}
         />
       </Grid>
     </Grid>

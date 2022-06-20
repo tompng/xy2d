@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { View as WGLView, RenderingOption, SurfaceObject } from '../view'
+import { View as WGLView, RenderingOption, SurfaceObject, DisposableGeometryData } from '../view'
 import type { WorkerInput, WorkerOutput } from '../worker'
 import * as THREE from 'three'
 import { randomColor } from './Form'
@@ -28,19 +28,24 @@ export const View = React.memo<ViewProps>(({ watcher, camera, onCameraChange, wi
     viewRef.current = view
     ref.current?.appendChild(view.renderer.domElement)
     const meshes = new Map<string, SurfaceObject>()
+    view.onUpdate = (x, y, z) => {
+      for (const obj of meshes.values()) {
+        obj.switchMesh(x, y, z)
+      }
+    }
     watcher.onUpdate = () => {
       for (const [id, worker] of watcher.workers.entries()) {
         let item = meshes.get(id)
-        const geometry = worker.geometry
-        if (item && item.geometry !== geometry) {
+        const data = worker.data
+        if (item && item.data !== data) {
           view.scene.remove(item.mesh)
           item.dispose()
           item = undefined
         }
-        if (!geometry) continue
-        const option = watcher.renderingOptions.get(id) ?? {}
+        if (!data) continue
+        const option = watcher.renderingOptions.get(id) ?? { color : 'white', alpha: 1 }
         if (!item) {
-          item = new SurfaceObject(geometry, option)
+          item = new SurfaceObject(data, option)
           view.scene.add(item.mesh)
           meshes.set(id, item)
         } else {
@@ -94,6 +99,7 @@ export type FormulaProgress = {
   value?: number
   error?: string
 }
+
 class PolygonizeWorker {
   worker = new Worker('./dist/worker3d.js')
   state: FormulaProgress = {
@@ -101,32 +107,41 @@ class PolygonizeWorker {
     resolution: 0,
     complete: false,
   }
-  constructor(public valueCode: string | null, public rangeCode: string | null, public radius: number, public onChange: () => void, public geometry: THREE.BufferGeometry | null = null) {
+  constructor(
+    public valueCode: string | null,
+    public rangeCode: string | null,
+    public radius: number,
+    public onChange: () => void,
+    public transparent: boolean,
+    public data: DisposableGeometryData | null = null
+  ) {
     try {
       if (valueCode && rangeCode) {
-        this.run(valueCode, rangeCode)
+        this.run(valueCode, rangeCode, transparent)
         console.log(valueCode, rangeCode)
       } else {
-        this.geometry?.dispose()
-        this.geometry = null
+        this.data?.dispose()
+        this.data = null
       }
     } catch (e) {
       this.state = { ...this.state, complete: true, error: String(e) }
       if (this.state.resolution === 0) {
-        this.geometry?.dispose()
-        this.geometry = null
+        this.data?.dispose()
+        this.data = null
       }
       this.onChange()
     }
   }
-  run(fvalue: string, frange: string) {
-    const inputData: WorkerInput = { fvalue, frange, radius: this.radius }
+  run(fvalue: string, frange: string, transparent: boolean) {
+    const inputData: WorkerInput = { transparent, fvalue, frange, radius: this.radius }
     this.worker.postMessage(inputData)
     this.worker.addEventListener('message', (e: MessageEvent<WorkerOutput>) => {
       const { data } = e
-      if (data.complete) {
+      if (data.type === 'complete' || data.type === 'error') {
         this.state = { ...this.state, complete: true }
-        if (data.error) this.state.error = 'unknown error'
+        if (data.type === 'error') {
+          this.state.error = 'unknown error'
+        }
         this.onChange()
         return
       }
@@ -135,21 +150,29 @@ class PolygonizeWorker {
       const geometry = new THREE.BufferGeometry()
       geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3))
       geometry.setAttribute('normal', new THREE.BufferAttribute(normals, 3))
+      const dispose = () => geometry.dispose()
+      this.data?.dispose()
+      if (data.type === 'transparent') {
+        const { dirRanges } = data
+        geometry.setIndex(new THREE.BufferAttribute(data.indices, 1))
+        geometry.setDrawRange(dirRanges[0].start, dirRanges[0].count)
+        this.data = { geometry, dirRanges, dispose }
+      } else {
+        this.data = { geometry, dispose }
+      }
       this.state = { ...this.state, resolution }
-      this.geometry?.dispose()
-      this.geometry = geometry
       this.onChange()
     })
   }
   terminate() {
     if (!this.state.complete) this.worker.terminate()
-    this.geometry?.dispose()
+    this.data?.dispose()
   }
 }
 
 export type FormulaInputType = {
   text: string
-  renderingOption?: RenderingOption
+  renderingOption: RenderingOption
 }
 
 export type FormulaType = {
@@ -166,11 +189,11 @@ type WorkerWatcher = {
 
 function initialFormulas(originalInputs: FormulaInputType[]): FormulaType[] {
   const inputs = [...originalInputs]
-  if (inputs.length === 0 || inputs[inputs.length - 1].text !== '') inputs.push({ text: '', renderingOption: { color: randomColor() } })
+  if (inputs.length === 0 || inputs[inputs.length - 1].text !== '') inputs.push({ text: '', renderingOption: { color: randomColor(), alpha: 1 } })
   return inputs.map(({ text, renderingOption }) => ({
     id: String(Math.random()),
     text,
-    renderingOption: renderingOption ?? {}
+    renderingOption
   }))
 }
 export type SetFormulasType = (value: FormulaType[] | ((formulas: FormulaType[]) => FormulaType[])) => void
@@ -190,8 +213,9 @@ export function useFormulas(
     }
     let changed = false
     for (let i = 0; i < formulas.length; i++) {
-      const { id } = formulas[i]
+      const { id, renderingOption } = formulas[i]
       const parsed = parsedFormulas[i]
+      const transparent = renderingOption.alpha !== 1
       let w = workers.get(id)
       let valueCode: string | null = null
       let rangeCode: string | null = null
@@ -204,14 +228,11 @@ export function useFormulas(
           parsed.error = String(e)
         }
       }
-      if (!w || w.valueCode !== valueCode || w.rangeCode !== rangeCode || w.radius !== radius) {
+      if (!w || w.valueCode !== valueCode || w.rangeCode !== rangeCode || w.radius !== radius || w.transparent !== transparent) {
         changed = true
-        const geometry = w?.geometry
-        if (w) {
-          w.geometry = null
-          w.terminate()
-        }
-        w = new PolygonizeWorker(valueCode, rangeCode, radius, update, geometry)
+        const prevData = w?.data
+        w?.terminate()
+        w = new PolygonizeWorker(valueCode, rangeCode, radius, update, transparent, prevData)
         workers.set(id, w)
       }
       let nextState: FormulaProgress | null = null

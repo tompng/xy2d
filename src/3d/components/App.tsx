@@ -37,9 +37,9 @@ function formulaAreaInitialHeight() {
 
 function getInitialFormula() {
   let radius = 1
-  let formulas: FormulaInputType[] = [{ text: 'r^3=1+4xyz', renderingOption: { color: randomColor() } }]
+  let formulas: FormulaInputType[] = [{ text: 'r^3=1+4xyz', renderingOption: { color: randomColor(), alpha: 1 } }]
   try {
-    const queries = location.search.substr(location.search[0] === '?' ? 1 : 0).split('&')
+    const queries = location.search.substring(location.search[0] === '?' ? 1 : 0).split('&')
     for (const q of queries) {
       const [key, value] = q.split('=', 2)
       if (key === 'r') {
@@ -50,8 +50,9 @@ function getInitialFormula() {
         if (Array.isArray(res)) {
           formulas = res.map(f => {
             const text = ('text' in f && typeof f.text === 'string') ? f.text : ''
-            const color = ('color' in f && typeof f.color === 'string') ? f.color : undefined
-            return { text, renderingOption: { color } }
+            const color = ('color' in f && typeof f.color === 'string') ? f.color : '#ffffff'
+            const alpha = ('alpha' in f && typeof f.alpha === 'number') ? f.alpha / 100 : 1
+            return { text, renderingOption: { color, alpha } }
           })
         }
       }
@@ -99,7 +100,11 @@ export const App: React.VFC = () => {
   const [cameraDialogOpen, setCameraDialogOpen] = useState(false)
   const radiusString = camera.radius.toFixed(Math.max(-Math.round(Math.log10(camera.radius)) + 2, 0))
   useEffect(() => {
-    const formatted = formulas.map(f => ({ text: f.text, color: f.renderingOption.color }))
+    const formatted = formulas.map(f => ({
+      text: f.text,
+      color: f.renderingOption.color,
+      alpha: f.renderingOption.alpha === 1 ? undefined : Math.round(f.renderingOption.alpha * 100)
+    }))
     while (formatted.length > 0 && formatted[formatted.length - 1].text === '') formatted.pop()
     const path = location.pathname + `?r=${camera.radius}&f=${encodeURIComponent(JSON.stringify(formatted))}`
     replacePath(path)

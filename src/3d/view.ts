@@ -11,37 +11,71 @@ void main() {
 const fragmentShader = `
 varying vec3 vNormal;
 uniform vec3 color;
+uniform float alpha;
 void main() {
   float brightness = 0.5 + dot(vNormal, vec3(1, 2, 3)) / 8.0 * (2.0 * float(gl_FrontFacing) - 1.0);
-  gl_FragColor = vec4(color * brightness, 1);
+  gl_FragColor = vec4(color * brightness, alpha);
 }
 `
 
 export type RenderingOption = {
-  color?: string
+  color: string
+  alpha: number
+}
+
+export type DisposableGeometryData = {
+  geometry: THREE.BufferGeometry
+  dirRanges?: { x: number; y: number; z: number; start: number; count: number }[]
+  dispose: () => void
 }
 export class SurfaceObject {
-  uniforms = { color: { value: new THREE.Color('white') } }
+  uniforms = { color: { value: new THREE.Color('white') }, alpha: { value: 1 } }
   material: THREE.ShaderMaterial
   mesh: THREE.Mesh
-  constructor(public geometry: THREE.BufferGeometry, public renderingOption: RenderingOption) {
+  transparent: boolean
+  constructor(public data: DisposableGeometryData, public renderingOption: RenderingOption) {
     this.update(renderingOption)
+    this.transparent = !!data.dirRanges
+    const otherOption = this.transparent ? {
+      // TODO: use `transparent: true` if gl_FrontFacing works
+      blending: THREE.CustomBlending,
+      blendSrc: THREE.SrcAlphaFactor,
+      blendDst: THREE.OneMinusSrcAlphaFactor
+    } : {}
     const material = new THREE.ShaderMaterial({
       uniforms: this.uniforms,
       vertexShader,
       fragmentShader,
-      side: THREE.DoubleSide
+      side: THREE.DoubleSide,
+      ...otherOption
     })
     this.material = material
-    this.mesh = new THREE.Mesh(geometry, material)
+    this.mesh = new THREE.Mesh(data.geometry, material)
+    if (this.transparent) this.mesh.renderOrder = 1
+  }
+  switchMesh(x: number, y: number, z: number) {
+    const { dirRanges } = this.data
+    if (!dirRanges) return
+    let minDiff: number | undefined
+    let minItem: (typeof dirRanges[0]) | undefined
+    for (const item of dirRanges) {
+      const diff = (item.x - x) ** 2 + (item.y - y) ** 2 + (item.z - z) ** 2
+      if (minDiff == null || diff < minDiff) {
+        minDiff = diff
+        minItem = item
+      }
+    }
+    if (!minItem) return
+    this.data.geometry.setDrawRange(minItem.start, minItem.count)
   }
   update(option: RenderingOption) {
     this.renderingOption = option
-    this.uniforms.color.value = new THREE.Color(option.color ?? 'white')
+    this.uniforms.color.value = new THREE.Color(option.color)
+    if (this.transparent) this.uniforms.alpha.value = option.alpha
   }
   dispose() {
     this.material.dispose()
-    this.geometry.dispose()
+    this.data.dispose()
   }
 }
 
@@ -159,8 +193,10 @@ export class View {
     this.renderRadius = this.zoomRadius
     this.onZoomChange?.(this.renderRadius)
   }
+  onUpdate?: (dx: number, dy: number, dz: number) => void
   render() {
     const { renderer, scene, xyTheta, zTheta, width, height, zoomRadius, rendered } = this
+    this.onUpdate?.(Math.cos(xyTheta) * Math.cos(zTheta), Math.sin(xyTheta) * Math.cos(zTheta), Math.sin(zTheta))
     if (rendered.width !== width || rendered.height !== height || rendered.pixelRatio !== devicePixelRatio || rendered.radius !== zoomRadius) {
       renderer.setPixelRatio(devicePixelRatio)
       renderer.setSize(width, height)

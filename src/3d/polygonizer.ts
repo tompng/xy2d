@@ -23,16 +23,17 @@ export function splitRanges(frange: RangeFunction3D, ranges: Range3D[]) {
 const marchingCubePattern = generateMarchingCubeTable()
 
 type PolygonizeRange = { xmin: number; ymin: number; zmin: number; size: number; resolution: number }
-export function polygonize(fvalue: ValueFunction3D, ranges: Range3D[], segments: number, area: PolygonizeRange): number[] {
+export function polygonize(fvalue: ValueFunction3D, ranges: Range3D[], segments: number, area: PolygonizeRange, detailedEdge: boolean): [number, number[]] {
   const polygon: number[] = []
   const N = segments + 1
   const cssize = N ** 2
   let lprev = new Float64Array(cssize)
   let lnext = new Float64Array(cssize)
-  const edges: [number, number, number, number][] = []
+  const edges: [number, number, number, number][] | undefined = detailedEdge ? [] : undefined
   for (const range of ranges) polygonizeRange(fvalue, range, segments, lprev, lnext, polygon, edges)
-  if (edges.length === 0) return polygon
-  return polygonizeEdge(fvalue, polygon, edges, { ...area, resolution: area.resolution * segments })
+  const numPolygonsWithoutEdge = polygon.length / 9
+  if (!edges || edges.length === 0) return [numPolygonsWithoutEdge, polygon]
+  return [numPolygonsWithoutEdge, polygonizeEdge(fvalue, polygon, edges, { ...area, resolution: area.resolution * segments })]
 }
 
 function polygonizeRange(
