@@ -59,7 +59,6 @@ addEventListener('message', e => {
 
 function toTransparentOutput(positions: Float32Array, normals: Float32Array, resolution: number, radius: number) {
   const numTriangles = positions.length / 9
-  const triangleIndices: number[] = []
   const centers: [number, number, number][] = []
   for (let i = 0; i < numTriangles; i++) {
     const item: [number, number, number] = [0, 0, 0]
@@ -69,7 +68,6 @@ function toTransparentOutput(positions: Float32Array, normals: Float32Array, res
       const iv = Math.floor(resolution * (v + radius) / radius / 2)
       item[j] = iv < 0 ? 0 : iv >= resolution ? resolution - 1 : iv
     }
-    triangleIndices.push(i)
     centers.push(item)
   }
   let indicesIndex = 0
@@ -87,7 +85,7 @@ function toTransparentOutput(positions: Float32Array, normals: Float32Array, res
       for (const dz of [-1, 0, 1]) {
         if (dx === 0 && dy === 0 && dz === 0) continue
         const offset = ((dx < 0 ? 1 : 0) + (dy < 0 ? 1 : 0) + (dz < 0 ? 1 : 0)) * resolution
-        const indicesList: number[][] = [...new Array(3 * (resolution + 1))].map(() => [])
+        const indicesList: number[][] = [...new Array(3 * resolution + 1)].map(() => [])
         for (let i = 0; i < numTriangles; i++) {
           const [ix, iy, iz] = centers[i]
           const idx = offset + ix * dx + iy * dy + iz * dz
@@ -102,7 +100,7 @@ function toTransparentOutput(positions: Float32Array, normals: Float32Array, res
             indicesIndex += 3
           }
         }
-        const dr = Math.hypot(dx ** 2 + dy ** 2 + dz ** 2)
+        const dr = Math.hypot(dx, dy, dz)
         data.dirRanges.push({
           x: dx / dr,
           y: dy / dr,
@@ -142,9 +140,9 @@ function start(input: WorkerInput, sendOutput: (output: WorkerOutput) => void) {
     numPolygonsWithoutEdge = result[0]
     const positions = new Float32Array(result[1])
     const numPolygons = positions.length / 9
+    if (numPolygons > maxPolygons * 1.5) return
     send(positions, generateNormals(positions), res * 4)
     if (res * 4 >= maxResolution) return
-    if (numPolygons > maxPolygons * 1.5) return
     if (numPolygonsWithoutEdge * 4 > maxPolygons || ranges.length > preferredRanges) break
   }
   let N: number

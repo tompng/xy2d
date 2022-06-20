@@ -31,8 +31,9 @@ export function polygonize(fvalue: ValueFunction3D, ranges: Range3D[], segments:
   let lnext = new Float64Array(cssize)
   const edges: [number, number, number, number][] | undefined = detailedEdge ? [] : undefined
   for (const range of ranges) polygonizeRange(fvalue, range, segments, lprev, lnext, polygon, edges)
-  if (!edges || edges.length === 0) return [polygon.length / 9, polygon]
-  return [polygon.length / 9, polygonizeEdge(fvalue, polygon, edges, { ...area, resolution: area.resolution * segments })]
+  const numPolygonsWithoutEdge = polygon.length / 9
+  if (!edges || edges.length === 0) return [numPolygonsWithoutEdge, polygon]
+  return [numPolygonsWithoutEdge, polygonizeEdge(fvalue, polygon, edges, { ...area, resolution: area.resolution * segments })]
 }
 
 function polygonizeRange(
