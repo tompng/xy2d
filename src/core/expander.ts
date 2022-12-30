@@ -32,8 +32,8 @@ const sub: Expander = ([a, b], namer) => {
   if (typeof a === 'number' && typeof b === 'number') return [a - b, '']
   const minvar = namer()
   const maxvar = namer()
-  const mincode = `const ${minvar}=${typeof a === 'number' ? a : a[0]}-${typeof b === 'number' ? b : b[1]}`
-  const maxcode = `const ${maxvar}=${typeof a === 'number' ? a : a[1]}-${typeof b === 'number' ? b : b[0]}`
+  const mincode = `const ${minvar}=${typeof a === 'number' ? a : a[0]}-(${typeof b === 'number' ? b : b[1]})`
+  const maxcode = `const ${maxvar}=${typeof a === 'number' ? a : a[1]}-(${typeof b === 'number' ? b : b[0]})`
   return [[minvar, maxvar], `${mincode};${maxcode}`]
 }
 const minus: Expander = ([a], namer) => {

@@ -118,7 +118,7 @@ export function astToCode(ast: ASTNode, argNames: Set<string>): string {
       case '-':
       case '*':
       case '/':
-        return `(${a}${ast.op}${b})`
+        return `(${a}${ast.op}(${b}))`
       case 'atan':
         return `Math.atan2(${a},${b})`
       default:
